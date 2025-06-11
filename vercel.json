@@ -1,11 +1,22 @@
 {
-  "functions": {
-    "dist/server.js": { "runtime": "Node.js 24.x." }
-  },
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["dist/**"]
+      }
+    }
+  ],
   "routes": [
     {
+      "src": "/api/v1/(.*)",
+      "dest": "src/server.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/dist/server.js"
+      "dest": "src/server.ts"
     }
   ]
 }
