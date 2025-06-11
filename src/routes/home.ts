@@ -1,8 +1,9 @@
 import express from "express";
+import { Request, Response } from "express";
 
 const router = express.Router();
 
-router.get("/", (req, res) => {
+router.get("/", (req: Request, res: Response) => {
   try {
     const acceptHeader = req.headers["accept"] || "";
     const wantsJSON = acceptHeader.includes("application/json");
