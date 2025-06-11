@@ -1,6 +1,6 @@
 {
   "functions": {
-    "dist/server.js": { "runtime": "nodejs20.x" }
+    "dist/server.js": { "runtime": "Node.js 24.x." }
   },
   "routes": [
     {
