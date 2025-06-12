@@ -6,7 +6,7 @@ import {
 
 const router = express.Router();
 
-router.post("/login-admin", accessDashboard);
-router.post("/logout-admin", logoutAdmin);
+router.post("/login", accessDashboard);
+router.post("/logout", logoutAdmin);
 
 export default router;
