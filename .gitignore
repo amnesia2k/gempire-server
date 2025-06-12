@@ -18,6 +18,7 @@ pids
 .env
 .env.*production
 .env.*development
+.env.*developmentt
 
 # Build output
 build/
