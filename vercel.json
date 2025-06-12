@@ -5,13 +5,13 @@
       "src": "src/server.ts",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["dist/**"]
+        "includeFiles": ["src/**/*.ts", "src/**/*.js", "dist/**"]
       }
     }
   ],
   "routes": [
     {
-      "src": "/api/v1/(.*)",
+      "src": "/api/(.*)",
       "dest": "src/server.ts"
     },
     {
