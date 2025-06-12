@@ -42,7 +42,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 🔍 Utility to load all route files
-// This helper now also returns the relative path of the file
 function getAllRouteFiles(
   dir: string,
   baseDir: string
@@ -76,9 +75,6 @@ const loadRoutes = async () => {
         const handler = route.default;
 
         if (typeof handler === "function") {
-          // Determine the prefix based on file path or convention
-          // Example: if the file is in 'routes/api/v1/category.ts', mount it under /api/v1
-          // If it's in 'routes/general/home.ts', mount it under /
           let mountPath = "/"; // Default mount path
 
           // Remove file extension and 'index' if it's an index file
@@ -91,15 +87,7 @@ const loadRoutes = async () => {
             routeSegment = `/${routeSegment}`;
           }
 
-          // If you want ALL routes under /api/v1 regardless of folder structure
-          // app.use("/api/v1", handler);
-          // console.log(`✅ Loaded ${mountPath} from ${relativePath}`);
-
-          // OR if you want to be more specific based on folder structure
           if (relativePath.startsWith(path.join("api", "v1") + path.sep)) {
-            // If the route file is in 'routes/api/v1' folder
-            // e.g., routes/api/v1/products.ts -> /api/v1/products
-            // routes/api/v1/users/auth.ts -> /api/v1/users/auth
             const apiRouteSegment = relativePath
               .substring((path.join("api", "v1") + path.sep).length) // Remove 'api/v1/' part
               .replace(/\.(ts|js)$/, "")
@@ -121,44 +109,6 @@ const loadRoutes = async () => {
               )}`
             );
           } else {
-            // For other routes not under 'api/v1'
-            // Example: If you have a 'routes/general/home.ts'
-            // This needs to be handled differently. For simple cases,
-            // you might just mount the file directly.
-            // Let's assume for now, everything else goes to a general root level.
-            // You might need a more sophisticated mapping here depending on your
-            // desired URL structure.
-
-            // For now, let's revert to original behavior if it's NOT in api/v1
-            // Or, more likely, you'll still want to prefix it.
-            // For a simple case, let's keep all API routes under /api/v1.
-
-            // If you wanted to load /category from a file like 'routes/category.ts'
-            // and it should be accessible at /category (not /api/v1/category)
-            // Then you would do:
-            // if (relativePath === 'category.ts') {
-            //   app.use('/category', handler);
-            // } else {
-            //   app.use('/api/v1', handler); // Fallback for other API routes
-            // }
-
-            // To address your current 404s for /category and /product,
-            // while still having the /api/v1 prefix, you MUST adjust your client
-            // to request /api/v1/category and /api/v1/product.
-            // Your current setup: `app.use("/api/v1", handler);` means this.
-
-            // The simplest solution to your reported problem is:
-            // 1. Ensure your router files define routes relative to their
-            //    intended mount point.
-            // 2. Ensure your client calls the correct prefixed URL.
-
-            // Since your current code only uses app.use("/api/v1", handler);
-            // It means that *every* router you dynamically load from your `routes` directory
-            // will be mounted under the `/api/v1` prefix.
-
-            // Let's stick with the current `app.use("/api/v1", handler);`
-            // and assume the routes inside `/routes` directory define their
-            // sub-paths.
             app.use("/api/v1", handler);
             console.log(
               `✅ Loaded /api/v1 from ${path.relative(__dirname, filePath)}`

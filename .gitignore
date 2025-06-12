@@ -16,7 +16,8 @@ pids
 
 # Environment variables
 .env
-# .env.*
+.env.*production
+.env.*development
 
 # Build output
 build/
