@@ -12,6 +12,8 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 8000;
 const app = express();
 
+// console.log(typeof process.env.DATABASE_URL, process.env.DATABASE_URL);
+
 // 🌍 Allowed origins for CORS
 const allowedOrigins = [
   "https://auth-api-v1-tau.vercel.app", // prod
