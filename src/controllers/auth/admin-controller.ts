@@ -38,8 +38,8 @@ export const accessDashboard = async (req: Request, res: Response) => {
       path: "/",
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: "none",
+      secure: true,
     });
 
     res.status(200).json({
@@ -77,8 +77,8 @@ export const logoutAdmin = async (req: Request, res: Response) => {
     res.clearCookie("token", {
       path: "/",
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: "none",
+      secure: true,
     });
 
     res.status(200).json({ message: "Logout successful", success: true });
