@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import fs from "node:fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // ESM __dirname fix
 const __filename = fileURLToPath(import.meta.url);
@@ -154,6 +156,23 @@ const startServer = async () => {
 
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
+
+    // 🌱 Keep Neon awake every 4 minutes
+    setInterval(() => {
+      db.execute(sql`SELECT 1`)
+        .then(() => console.log("💓 Keep-alive ping sent"))
+        .catch((err) => console.error("💥 Keep-alive failed:", err.message));
+    }, 240_000); // every 4 mins
+
+    // if (process.env.NODE_ENV === "production") {
+    //   setInterval(() => {
+    //     db.execute(sql`SELECT 1`)
+    //       .then(() => console.log("💓 Neon keep-alive ping sent"))
+    //       .catch((err) =>
+    //         console.error("💥 Neon keep-alive failed:", err.message)
+    //       );
+    //   }, 240_000); // 4 minutes
+    // }
   });
 };
 

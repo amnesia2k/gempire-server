@@ -1,0 +1,1 @@
+ALTER TABLE "product_images" ADD COLUMN "blurUrl" varchar(1024);

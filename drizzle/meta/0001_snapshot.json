@@ -1,6 +1,6 @@
 {
-  "id": "31f6dd1c-f090-40a1-9a52-a6c5c54ed96e",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "9f0515ff-6081-4aa0-9257-8422ede8970c",
+  "prevId": "31f6dd1c-f090-40a1-9a52-a6c5c54ed96e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -133,6 +133,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "blurUrl": {
+          "name": "blurUrl",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false
         },
         "productId": {
           "name": "productId",

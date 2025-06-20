@@ -3,7 +3,7 @@ import multer from "multer";
 import {
   createProduct,
   getAllProducts,
-  getProductById,
+  getProductBySlug,
 } from "../../controllers/products/product-controller";
 import { tokenVerification } from "../../middleware/auth/admin-middleware";
 
@@ -17,6 +17,6 @@ router.post(
   createProduct
 );
 router.get("/product", getAllProducts);
-router.get("/product/:id", getProductById);
+router.get("/product/:slug", getProductBySlug);
 
 export default router;

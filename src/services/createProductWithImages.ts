@@ -5,6 +5,10 @@ import cloudinary from "../utils/cloudinary";
 import { productImages } from "../db/product-images-schema";
 import { category } from "../db/category-schema";
 import { eq } from "drizzle-orm";
+import { slugify } from "../utils/slugify";
+import { generateHybridId } from "../utils/id";
+import { throwBadRequest, throwNotFound } from "../utils/error";
+import { safeUploadToCloudinary } from "../utils/safe-upload";
 
 type Input = {
   name: string;
@@ -31,7 +35,7 @@ export const createProductWithImages = async ({
     !files?.length ||
     !categoryId
   ) {
-    throw new Error("All fields and at least one image are required.");
+    throw throwBadRequest("All fields and at least one image are required.");
   }
 
   const [existingCategory] = await db
@@ -40,14 +44,16 @@ export const createProductWithImages = async ({
     .where(eq(category._id, categoryId));
 
   if (!existingCategory) {
-    throw new Error("Invalid categoryId: Category not found");
+    throw throwNotFound("Invalid categoryId: Category not found");
   }
 
   const [newProduct] = await db
     .insert(products)
     .values({
       _id: createId(),
+      productId: generateHybridId("gem"),
       name,
+      slug: slugify(name),
       description,
       price: price.toString(),
       unit,
@@ -55,26 +61,12 @@ export const createProductWithImages = async ({
     })
     .returning();
 
-  const uploadedUrls = await Promise.all(
-    files.map(
-      (file) =>
-        new Promise<string>((resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream(
-              {
-                folder: "products",
-                width: 600,
-                height: 600,
-              },
-              (err, result) => {
-                if (err || !result) return reject(err);
-                resolve(result.secure_url);
-              }
-            )
-            .end(file.buffer);
-        })
-    )
-  );
+  const uploadedUrls: string[] = [];
+
+  for (const file of files) {
+    const url = await safeUploadToCloudinary(file);
+    uploadedUrls.push(url);
+  }
 
   const imageRows = await db
     .insert(productImages)

@@ -1,10 +1,10 @@
-// category-controller.ts
 import { Request, Response } from "express";
 import { createId } from "@paralleldrive/cuid2";
 import { db } from "../../db";
 import { category } from "../../db/category-schema";
 import { slugify } from "../../utils/slugify";
 import { eq } from "drizzle-orm";
+import { AppError } from "../../utils/error";
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
@@ -49,9 +49,27 @@ export const createCategory = async (req: Request, res: Response) => {
       message: "Category created successfully",
       data: inserted,
     });
-  } catch (err) {
-    console.error("Error creating category:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+  } catch (error: unknown) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        message: error.message,
+        success: false,
+      });
+    } else {
+      console.error("Unhandled error:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : "Unknown error";
+
+      res.status(500).json({
+        message: "Something went wrong: " + message,
+        success: false,
+      });
+    }
   }
 };
 
@@ -72,10 +90,27 @@ export const getAllCategories = async (_req: Request, res: Response) => {
       success: true,
       data: categories,
     });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Error fetching categories" });
+  } catch (error: unknown) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        message: error.message,
+        success: false,
+      });
+    } else {
+      console.error("Unhandled error:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : "Unknown error";
+
+      res.status(500).json({
+        message: "Something went wrong: " + message,
+        success: false,
+      });
+    }
   }
 };
 
@@ -116,8 +151,26 @@ export const getCategoryById = async (req: Request, res: Response) => {
       success: true,
       data: categoryData,
     }); // Sends a single object
-  } catch (err) {
-    console.error("Error fetching category:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+  } catch (error: unknown) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        message: error.message,
+        success: false,
+      });
+    } else {
+      console.error("Unhandled error:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : "Unknown error";
+
+      res.status(500).json({
+        message: "Something went wrong: " + message,
+        success: false,
+      });
+    }
   }
 };

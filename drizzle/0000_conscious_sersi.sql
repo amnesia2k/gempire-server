@@ -7,6 +7,7 @@ CREATE TABLE "passcodes" (
 CREATE TABLE "products" (
 	"_id" varchar(255) PRIMARY KEY NOT NULL,
 	"name" varchar(255) NOT NULL,
+	"slug" varchar(255) NOT NULL,
 	"description" varchar(255) NOT NULL,
 	"price" numeric(10, 2) NOT NULL,
 	"unit" integer NOT NULL,
