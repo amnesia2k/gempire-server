@@ -1,7 +1,6 @@
 import { createId } from "@paralleldrive/cuid2";
 import { db } from "../db";
 import { products } from "../db/product-schema";
-import cloudinary from "../utils/cloudinary";
 import { productImages } from "../db/product-images-schema";
 import { category } from "../db/category-schema";
 import { eq } from "drizzle-orm";
@@ -38,6 +37,20 @@ export const createProductWithImages = async ({
     throw throwBadRequest("All fields and at least one image are required.");
   }
 
+  const slug = slugify(name);
+
+  // 🛑 Check if a product with this slug already exists
+  const [existingProduct] = await db
+    .select()
+    .from(products)
+    .where(eq(products.slug, slug));
+
+  if (existingProduct) {
+    throw throwBadRequest(
+      `Product with the name "${name}" already exists. Please choose a different name.`
+    );
+  }
+
   const [existingCategory] = await db
     .select()
     .from(category)
@@ -53,7 +66,7 @@ export const createProductWithImages = async ({
       _id: createId(),
       productId: generateHybridId("gem"),
       name,
-      slug: slugify(name),
+      slug,
       description,
       price: price.toString(),
       unit,

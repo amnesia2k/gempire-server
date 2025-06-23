@@ -4,17 +4,18 @@ import { db } from "../../db";
 import { category } from "../../db/category-schema";
 import { slugify } from "../../utils/slugify";
 import { eq } from "drizzle-orm";
-import { AppError } from "../../utils/error";
+import {
+  AppError,
+  throwBadRequest,
+  throwNotFound,
+  throwServerError,
+} from "../../utils/error";
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
 
-    if (!name) {
-      res.status(400).json({ success: false, message: "Name is required" });
-
-      return;
-    }
+    if (!name) throw throwBadRequest("Name is required");
 
     const slug = slugify(name);
 
@@ -25,12 +26,9 @@ export const createCategory = async (req: Request, res: Response) => {
       .where(eq(category.slug, slug));
 
     if (existing) {
-      res.status(409).json({
-        success: false,
-        message: `Category with slug "${slug}" already exists.`,
-      });
-
-      return;
+      throw throwBadRequest(
+        `Category with name "${name}" already exists. Try a different name`
+      );
     }
 
     const newCategory = {
@@ -65,10 +63,7 @@ export const createCategory = async (req: Request, res: Response) => {
           ? JSON.stringify(error)
           : "Unknown error";
 
-      res.status(500).json({
-        message: "Something went wrong: " + message,
-        success: false,
-      });
+      throwServerError("Something went wrong: " + message);
     }
   }
 };
@@ -77,13 +72,7 @@ export const getAllCategories = async (_req: Request, res: Response) => {
   try {
     const categories = await db.select().from(category);
 
-    // const categories = await db
-    //   .select({
-    //     id: category._id,
-    //     name: category.name,
-    //     slug: category.slug,
-    //   })
-    //   .from(category);
+    if (categories.length === 0) throw throwNotFound("No categories found");
 
     res.status(200).json({
       message: "Categories fetched successfully",
@@ -106,10 +95,7 @@ export const getAllCategories = async (_req: Request, res: Response) => {
           ? JSON.stringify(error)
           : "Unknown error";
 
-      res.status(500).json({
-        message: "Something went wrong: " + message,
-        success: false,
-      });
+      throwServerError("Something went wrong: " + message);
     }
   }
 };
@@ -118,39 +104,26 @@ export const getCategoryById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    if (!id) {
-      res.status(400).json({ success: false, message: "ID is required" });
-      return;
-    }
+    if (!id) throwBadRequest("Category id is required");
 
-    // --- CHANGE STARTS HERE ---
     const categoryData = await db.query.category.findFirst({
-      // Use findFirst instead of findMany
       where: eq(category._id, id),
       with: {
         products: {
           with: {
-            images: true, // Eager load product images
+            images: true,
           },
         },
       },
     });
-    // --- CHANGE ENDS HERE ---
 
-    if (!categoryData) {
-      // This check will now work correctly for `undefined`
-      res.status(404).json({
-        message: "Category not found",
-        success: false,
-      });
-      return;
-    }
+    if (!categoryData) throwNotFound("Category not found");
 
     res.status(200).json({
       message: "Category Products fetched successfully",
       success: true,
       data: categoryData,
-    }); // Sends a single object
+    });
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -167,10 +140,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
           ? JSON.stringify(error)
           : "Unknown error";
 
-      res.status(500).json({
-        message: "Something went wrong: " + message,
-        success: false,
-      });
+      throwServerError("Something went wrong: " + message);
     }
   }
 };

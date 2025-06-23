@@ -1,7 +1,6 @@
 import {
   integer,
   numeric,
-  pgEnum,
   pgTable,
   timestamp,
   varchar,
@@ -21,7 +20,7 @@ export const products = pgTable("products", {
   productId: varchar({ length: 255 }),
   name: varchar({ length: 255 }).notNull(),
   // remove default placeholder when nuking DB
-  slug: varchar({ length: 255 }).notNull(),
+  slug: varchar({ length: 255 }).notNull().unique(),
   description: varchar({ length: 255 }).notNull(),
   price: numeric({ precision: 10, scale: 2 }).notNull(),
   unit: integer().notNull(),
