@@ -20,6 +20,7 @@ const app = express();
 const allowedOrigins = [
   "https://gempire-client.vercel.app", // prod
   "https://gempire.shop", // prod-2
+  "https://store.olatilewa.dev", // prod-3
   "http://localhost:3000", // dev
   "http://localhost:3001", // dev alt
 ];
