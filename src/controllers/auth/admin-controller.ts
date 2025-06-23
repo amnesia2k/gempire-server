@@ -34,19 +34,19 @@ export const accessDashboard = async (req: Request, res: Response) => {
     const passcode = passcodeResult[0];
     const token = generateToken(passcode._id);
 
-    // res.cookie("token", token, {
-    //   path: "/",
-    //   httpOnly: true,
-    //   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    //   sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    //   secure: process.env.NODE_ENV === "production" ? true : false,
-    // });
+    res.cookie("token", token, {
+      httpOnly: false, // OR true (if you’re using server-only reads)
+      path: "/",
+      sameSite: "none", // must be "none" for cross-site
+      secure: true, // must be true for SameSite=None to work
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     res.status(200).json({
       success: true,
       valid: true,
       message: "Access granted",
-      data: { ...passcode, token },
+      // data: { ...passcode, token },
     });
   } catch (error: unknown) {
     if (error instanceof AppError) {
@@ -71,6 +71,12 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
 export const logoutAdmin = async (req: Request, res: Response) => {
   try {
+    res.clearCookie("token", {
+      path: "/",
+      sameSite: "none",
+      secure: true,
+    });
+
     res.status(200).json({ message: "Logout successful", success: true });
   } catch (error: unknown) {
     if (error instanceof AppError) {
@@ -95,21 +101,12 @@ export const logoutAdmin = async (req: Request, res: Response) => {
 
 export const getAdmin = async (req: Request, res: Response) => {
   try {
-    const cookieHeader = req.headers.cookie;
+    const token = req.cookies.token;
 
-    if (!cookieHeader) {
+    if (!token) {
       res.status(401).json({ message: "No token provided", success: false });
-
       return;
     }
-
-    const tokenMatch = cookieHeader.match(/token=([^;]+)/);
-    if (!tokenMatch) {
-      res.status(401).json({ message: "Token not found", success: false });
-      return;
-    }
-
-    const token = tokenMatch[1];
 
     let decoded;
     try {
@@ -120,6 +117,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     }
 
     const adminId = decoded._id;
+
     const result = await db
       .select()
       .from(adminPasscodes)
@@ -135,7 +133,6 @@ export const getAdmin = async (req: Request, res: Response) => {
       data: result[0],
       success: true,
     });
-    return;
   } catch (error) {
     console.error("getAdmin error:", error);
     throwServerError("Something went wrong");
