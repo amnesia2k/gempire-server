@@ -34,6 +34,8 @@ export const accessDashboard = async (req: Request, res: Response) => {
     const passcode = passcodeResult[0];
     const token = generateToken(passcode._id);
 
+    res.setHeader("Cache-Control", "no-store"); // 👈 SOLUTION ✅
+
     res.cookie("token", token, {
       httpOnly: false, // OR true (if you’re using server-only reads)
       path: "/",
@@ -71,6 +73,8 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
 export const logoutAdmin = async (req: Request, res: Response) => {
   try {
+    res.setHeader("Cache-Control", "no-store"); // 👈 SOLUTION ✅
+
     res.clearCookie("token", {
       path: "/",
       sameSite: "none",
