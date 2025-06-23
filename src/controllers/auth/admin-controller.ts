@@ -46,7 +46,7 @@ export const accessDashboard = async (req: Request, res: Response) => {
       success: true,
       valid: true,
       message: "Access granted",
-      // data: { ...passcode, token },
+      data: { ...passcode, token },
     });
   } catch (error: unknown) {
     if (error instanceof AppError) {
