@@ -19,6 +19,7 @@ const app = express();
 // 🌍 Allowed origins for CORS
 const allowedOrigins = [
   "https://gempire-client.vercel.app", // prod
+  "https://gempire.shop", // prod-2
   "http://localhost:3000", // dev
   "http://localhost:3001", // dev alt
 ];
