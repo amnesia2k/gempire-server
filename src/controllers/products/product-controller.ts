@@ -14,6 +14,7 @@ import {
 import { safeUploadToCloudinary } from "../../utils/safe-upload";
 import { slugify } from "../../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
+import { safeDeleteFromCloudinary } from "../../utils/safe-delete";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -225,7 +226,6 @@ export const editProduct = async (req: Request, res: Response) => {
     const { slug } = req.params;
     const { name, description, price, unit, categoryId } = req.body;
 
-    // 🔥 FIX: Parse deletedImageIds from FormData properly
     const rawDeletedImageIds = req.body.deletedImageIds;
     const deletedImageIds = Array.isArray(rawDeletedImageIds)
       ? rawDeletedImageIds
@@ -246,7 +246,6 @@ export const editProduct = async (req: Request, res: Response) => {
 
     const productId = existingProduct._id;
 
-    // 🔁 Regenerate slug only if name changed
     let newSlug = existingProduct.slug;
     if (name && name !== existingProduct.name) {
       newSlug = slugify(name);
@@ -262,8 +261,22 @@ export const editProduct = async (req: Request, res: Response) => {
       }
     }
 
-    // 🗑 Delete selected images
+    // 🗑 Delete selected images from Cloudinary + DB
     if (deletedImageIds.length > 0) {
+      const imagesToDelete = await db
+        .select()
+        .from(productImages)
+        .where(
+          and(
+            eq(productImages.productId, productId),
+            inArray(productImages._id, deletedImageIds)
+          )
+        );
+
+      await Promise.all(
+        imagesToDelete.map((img) => safeDeleteFromCloudinary(img.publicId))
+      );
+
       await db
         .delete(productImages)
         .where(
@@ -284,10 +297,11 @@ export const editProduct = async (req: Request, res: Response) => {
       const inserted = await db
         .insert(productImages)
         .values(
-          uploads.map((url) => ({
+          uploads.map(({ url, publicId }) => ({
             _id: createId(),
             productId,
             imageUrl: url,
+            publicId,
           }))
         )
         .returning();
@@ -295,7 +309,6 @@ export const editProduct = async (req: Request, res: Response) => {
       uploadedImageRows.push(...inserted);
     }
 
-    // 🧾 Update the product
     const [updatedProduct] = await db
       .update(products)
       .set({
@@ -327,7 +340,6 @@ export const editProduct = async (req: Request, res: Response) => {
       });
     } else {
       console.error("Unhandled error:", error);
-
       const message =
         error instanceof Error
           ? error.message
@@ -343,7 +355,6 @@ export const editProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
     if (!id) throwBadRequest("Product ID is required");
 
     const [product] = await db
@@ -353,10 +364,16 @@ export const deleteProduct = async (req: Request, res: Response) => {
 
     if (!product) throwNotFound("Product not found");
 
-    // Delete images associated
-    await db.delete(productImages).where(eq(productImages.productId, id));
+    const imageRecords = await db
+      .select()
+      .from(productImages)
+      .where(eq(productImages.productId, id));
 
-    // Delete the product
+    await Promise.all(
+      imageRecords.map((img) => safeDeleteFromCloudinary(img.publicId))
+    );
+
+    await db.delete(productImages).where(eq(productImages.productId, id));
     await db.delete(products).where(eq(products._id, id));
 
     res.status(200).json({

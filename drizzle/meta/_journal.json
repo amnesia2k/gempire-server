@@ -29,6 +29,13 @@
       "when": 1750431524324,
       "tag": "0003_smooth_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1750863053703,
+      "tag": "0004_violet_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

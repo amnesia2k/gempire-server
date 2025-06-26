@@ -74,20 +74,18 @@ export const createProductWithImages = async ({
     })
     .returning();
 
-  const uploadedUrls: string[] = [];
-
-  for (const file of files) {
-    const url = await safeUploadToCloudinary(file);
-    uploadedUrls.push(url);
-  }
+  const uploadedResults = await Promise.all(
+    files.map((file) => safeUploadToCloudinary(file))
+  );
 
   const imageRows = await db
     .insert(productImages)
     .values(
-      uploadedUrls.map((url) => ({
+      uploadedResults.map(({ url, publicId }) => ({
         _id: createId(),
         productId: newProduct._id,
         imageUrl: url,
+        publicId, // 👈 save it!
       }))
     )
     .returning();

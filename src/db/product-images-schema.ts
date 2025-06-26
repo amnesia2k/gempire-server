@@ -5,7 +5,7 @@ import { products } from "./product-schema";
 export const productImages = pgTable("product_images", {
   _id: varchar({ length: 255 }).primaryKey(),
   imageUrl: varchar({ length: 255 }).notNull(),
-  blurUrl: varchar({ length: 1024 }),
+  publicId: varchar({ length: 255 }).notNull(),
   productId: varchar()
     .notNull()
     .references(() => products._id, { onDelete: "cascade" }),

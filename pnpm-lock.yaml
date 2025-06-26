@@ -77,6 +77,9 @@ importers:
       plaiceholder:
         specifier: ^3.0.0
         version: 3.0.0(sharp@0.34.2)
+      sharp:
+        specifier: ^0.34.2
+        version: 0.34.2
       zod:
         specifier: ^3.25.45
         version: 3.25.57

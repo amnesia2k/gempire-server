@@ -1,0 +1,1 @@
+ALTER TABLE "product_images" RENAME COLUMN "blurUrl" TO "publicId";
