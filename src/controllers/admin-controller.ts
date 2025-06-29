@@ -1,10 +1,16 @@
 import { Request, RequestHandler, Response } from "express";
-import { db } from "../../db";
-import { adminPasscodes } from "../../db/passcode-schema";
+import { db } from "../db";
+import { adminPasscodes } from "../db/passcode-schema";
 import { eq } from "drizzle-orm";
-import { generateToken } from "../../helpers/generate-token";
+import { generateToken } from "../helpers/generate-token";
 import jwt from "jsonwebtoken";
-import { AppError, throwServerError } from "../../utils/error";
+import {
+  AppError,
+  throwBadRequest,
+  throwNotFound,
+  throwServerError,
+  throwUnauthorized,
+} from "../utils/error";
 
 type AccessRequestBody = { code: string };
 
@@ -12,24 +18,14 @@ export const accessDashboard = async (req: Request, res: Response) => {
   try {
     const { code } = req.body as AccessRequestBody;
 
-    if (!code) {
-      res.status(400).json({
-        message: "Passcode is required",
-      });
-      return;
-    }
+    if (!code) throwBadRequest("Passcode is required");
 
     const passcodeResult = await db
       .select()
       .from(adminPasscodes)
       .where(eq(adminPasscodes.passcode, code));
 
-    if (passcodeResult.length === 0) {
-      res
-        .status(401)
-        .json({ success: false, valid: false, message: "Invalid passcode" });
-      return;
-    }
+    if (passcodeResult.length === 0) throwBadRequest("Invalid passcode");
 
     const passcode = passcodeResult[0];
     const token = generateToken(passcode._id);
@@ -107,16 +103,14 @@ export const getAdmin = async (req: Request, res: Response) => {
   try {
     const token = req.cookies.token;
 
-    if (!token) {
-      res.status(401).json({ message: "No token provided", success: false });
-      return;
-    }
+    if (!token) throwUnauthorized("Admin token is required");
 
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as { _id: string };
     } catch {
-      res.status(401).json({ message: "Invalid token", success: false });
+      throwUnauthorized("Invalid admin token");
+
       return;
     }
 
@@ -127,10 +121,7 @@ export const getAdmin = async (req: Request, res: Response) => {
       .from(adminPasscodes)
       .where(eq(adminPasscodes._id, adminId));
 
-    if (result.length === 0) {
-      res.status(404).json({ message: "Admin not found", success: false });
-      return;
-    }
+    if (result.length === 0) throwNotFound("Admin not found");
 
     res.status(200).json({
       message: "Fetched admin data successfully",

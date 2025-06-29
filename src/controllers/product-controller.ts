@@ -1,35 +1,30 @@
 import { Request, Response } from "express";
-import { createProductWithImages } from "../../services/createProductWithImages";
-import { db } from "../../db";
-import { products } from "../../db/product-schema";
+import { createProductWithImages } from "../services/createProductWithImages";
+import { db } from "../db";
+import { products } from "../db/product-schema";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
-import { productImages } from "../../db/product-images-schema";
-import { category } from "../../db/category-schema";
+import { productImages } from "../db/product-images-schema";
+import { category } from "../db/category-schema";
 import {
   AppError,
   throwBadRequest,
   throwNotFound,
   throwServerError,
-} from "../../utils/error";
-import { safeUploadToCloudinary } from "../../utils/safe-upload";
-import { slugify } from "../../utils/slugify";
+} from "../utils/error";
+import { safeUploadToCloudinary } from "../utils/safe-upload";
+import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
-import { safeDeleteFromCloudinary } from "../../utils/safe-delete";
+import { safeDeleteFromCloudinary } from "../utils/safe-delete";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { name, description, price, unit, categoryId } = req.body;
     const files = req.files as Express.Multer.File[];
 
-    if (
-      !name ||
-      !description ||
-      !price ||
-      !unit ||
-      !categoryId ||
-      !files?.length
-    )
-      throwBadRequest("All fields and at least one image are required.");
+    if (!name || !description || !price || !unit || !categoryId)
+      throwBadRequest("All fields are required.");
+
+    if (!files?.length) throwBadRequest("At least one image is required.");
 
     const result = await createProductWithImages({
       name,

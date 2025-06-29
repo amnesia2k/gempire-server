@@ -9,17 +9,10 @@ import { category } from "./category-schema";
 import { relations } from "drizzle-orm";
 import { productImages } from "./product-images-schema";
 
-// export const statusEnum = pgEnum("product_status", [
-//   "ordered",
-//   "delivered",
-//   "cancelled",
-// ]);
-
 export const products = pgTable("products", {
   _id: varchar({ length: 255 }).primaryKey(),
   productId: varchar({ length: 255 }),
   name: varchar({ length: 255 }).notNull(),
-  // remove default placeholder when nuking DB
   slug: varchar({ length: 255 }).notNull().unique(),
   description: varchar({ length: 255 }).notNull(),
   price: numeric({ precision: 10, scale: 2 }).notNull(),

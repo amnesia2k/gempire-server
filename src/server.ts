@@ -1,183 +1,75 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import fs from "node:fs";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
-// ESM __dirname fix
+const app = express();
+const PORT = process.env.PORT || 8000;
+
+// 🧭 Fix __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 8000;
-const app = express();
-
-// console.log(typeof process.env.DATABASE_URL, process.env.DATABASE_URL);
-
-// 🌍 Allowed origins for CORS
-const allowedOrigins = [
-  "https://gempire-client.vercel.app", // prod
-  "https://gempire.shop", // prod-2
-  "https://store.olatilewa.dev", // prod-3
-  "http://localhost:3000", // dev
-  "http://localhost:3001", // dev alt
-];
-
-// 🌐 CORS config
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`🚫 CORS blocked request from: ${origin}`);
-        callback(new Error(`Not allowed by CORS: ${origin}`));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
-
-// 🍪 Middleware
+// 🧱 Middleware
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 🔍 Utility to load all route files
-function getAllRouteFiles(
-  dir: string,
-  baseDir: string
-): { filePath: string; relativePath: string }[] {
-  let results: { filePath: string; relativePath: string }[] = [];
+// 🧠 Route loader (flat style, no auto-mounting file names)
+async function loadRoutesFlat() {
+  const routesDir = path.join(__dirname, "routes");
 
-  fs.readdirSync(dir).forEach((file) => {
-    const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
-    const relativePath = path.relative(baseDir, filePath);
+  const routeFiles = fs
+    .readdirSync(routesDir)
+    .filter((f) => f.endsWith(".ts") || f.endsWith(".js"));
 
-    if (stat.isDirectory()) {
-      results = results.concat(getAllRouteFiles(filePath, baseDir));
-    } else if (file.endsWith(".ts") || file.endsWith(".js")) {
-      results.push({ filePath, relativePath });
-    }
-  });
+  for (const file of routeFiles) {
+    try {
+      const filePath = path.join(routesDir, file);
+      const mod = await import(pathToFileURL(filePath).href);
+      const router = mod.default;
 
-  return results;
-}
-
-// 🚀 Dynamic route loading
-const loadRoutes = async () => {
-  const routesBasePath = path.join(__dirname, "routes"); // This is your 'routes' folder
-  const routeFiles = getAllRouteFiles(routesBasePath, routesBasePath); // Get all files and their relative paths
-
-  await Promise.all(
-    routeFiles.map(async ({ filePath, relativePath }) => {
-      try {
-        const route = await import(pathToFileURL(filePath).href);
-        const handler = route.default;
-
-        if (typeof handler === "function") {
-          let mountPath = "/"; // Default mount path
-
-          // Remove file extension and 'index' if it's an index file
-          let routeSegment = relativePath
-            .replace(/\.(ts|js)$/, "")
-            .replace(/index$/, "");
-
-          // Clean up trailing slash if it's not the root path
-          if (routeSegment !== "") {
-            routeSegment = `/${routeSegment}`;
-          }
-
-          if (relativePath.startsWith(path.join("api", "v1") + path.sep)) {
-            const apiRouteSegment = relativePath
-              .substring((path.join("api", "v1") + path.sep).length) // Remove 'api/v1/' part
-              .replace(/\.(ts|js)$/, "")
-              .replace(/index$/, "");
-
-            mountPath = `/api/v1/${apiRouteSegment}`;
-            if (mountPath.endsWith("/")) {
-              mountPath = mountPath.slice(0, -1); // Remove trailing slash if present
-            }
-            if (mountPath === "/api/v1") {
-              mountPath = "/api/v1"; // Ensure /api/v1 remains /api/v1
-            }
-
-            app.use(mountPath, handler);
-            console.log(
-              `✅ Loaded ${mountPath} from ${path.relative(
-                __dirname,
-                filePath
-              )}`
-            );
-          } else {
-            app.use("/api/v1", handler);
-            console.log(
-              `✅ Loaded /api/v1 from ${path.relative(__dirname, filePath)}`
-            );
-          }
-        } else {
-          console.warn(`⚠️ Skipped: ${filePath} does not export a router`);
-        }
-      } catch (error) {
-        console.error(`❌ Failed to load ${filePath}:`, error);
+      if (typeof router !== "function") {
+        console.warn(`⚠️ Skipped ${file} (no default export router)`);
+        continue;
       }
-    })
-  );
 
-  // Add a catch-all 404 handler for any unmatched routes
-  app.use((req, res, next) => {
+      app.use("/api/v1", router);
+      console.log(`✅ Mounted routes from ${file} at /api/v1`);
+    } catch (err) {
+      console.error(`❌ Error loading ${file}:`, err);
+    }
+  }
+
+  // 404 handler
+  app.use((req, res) => {
     res.status(404).json({
       message: "Not Found",
-      requestedUrl: req.originalUrl,
-      method: req.method,
+      url: req.originalUrl,
     });
   });
 
-  // Basic error handler
-  app.use(
-    (
-      err: Error,
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      console.error(err.stack);
-      res.status(500).send("Something broke!");
-    }
-  );
-};
-
-// 🏁 Start server
-const startServer = async () => {
-  await loadRoutes();
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
-
-    // 🌱 Keep Neon awake every 4 minutes
-    setInterval(() => {
-      db.execute(sql`SELECT 1`)
-        .then(() => console.log("💓 Keep-alive ping sent"))
-        .catch((err) => console.error("💥 Keep-alive failed:", err.message));
-    }, 240_000); // every 4 mins
-
-    // if (process.env.NODE_ENV === "production") {
-    //   setInterval(() => {
-    //     db.execute(sql`SELECT 1`)
-    //       .then(() => console.log("💓 Neon keep-alive ping sent"))
-    //       .catch((err) =>
-    //         console.error("💥 Neon keep-alive failed:", err.message)
-    //       );
-    //   }, 240_000); // 4 minutes
-    // }
+  // 500 handler
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error("💥 Internal Server Error:", err.stack);
+    res.status(500).json({ message: "Something broke!" });
   });
-};
+}
 
-startServer();
+// 🚀 Start server and load routes
+loadRoutesFlat().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server ready at http://localhost:${PORT}`);
+  });
 
-export default app;
+  // 💓 Keep-alive for Neon (every 4 mins)
+  setInterval(() => {
+    db.execute(sql`SELECT 1`)
+      .then(() => console.log("💓 Keep-alive ping sent"))
+      .catch((err) => console.error("💥 Keep-alive failed:", err.message));
+  }, 240_000);
+});

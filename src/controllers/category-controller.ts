@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import { createId } from "@paralleldrive/cuid2";
-import { db } from "../../db";
-import { category } from "../../db/category-schema";
-import { slugify } from "../../utils/slugify";
+import { db } from "../db";
+import { category } from "../db/category-schema";
+import { slugify } from "../utils/slugify";
 import { eq } from "drizzle-orm";
 import {
   AppError,
   throwBadRequest,
   throwNotFound,
   throwServerError,
-} from "../../utils/error";
+} from "../utils/error";
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
@@ -102,12 +102,12 @@ export const getAllCategories = async (_req: Request, res: Response) => {
 
 export const getCategoryById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { slug } = req.params;
 
-    if (!id) throwBadRequest("Category id is required");
+    if (!slug) throwBadRequest("Category id is required");
 
     const categoryData = await db.query.category.findFirst({
-      where: eq(category._id, id),
+      where: eq(category.slug, slug),
       with: {
         products: {
           with: {

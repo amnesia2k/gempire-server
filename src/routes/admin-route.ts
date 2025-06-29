@@ -3,7 +3,7 @@ import {
   accessDashboard,
   getAdmin,
   logoutAdmin,
-} from "../../controllers/auth/admin-controller";
+} from "../controllers/admin-controller";
 
 const router = express.Router();
 

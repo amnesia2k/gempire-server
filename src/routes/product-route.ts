@@ -6,8 +6,8 @@ import {
   editProduct,
   getAllProducts,
   getProductBySlug,
-} from "../../controllers/products/product-controller";
-import { tokenVerification } from "../../middleware/auth/admin-middleware";
+} from "../controllers/product-controller";
+import { tokenVerification } from "../middleware/auth/admin-middleware";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
