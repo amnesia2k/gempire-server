@@ -73,3 +73,5 @@ loadRoutesFlat().then(() => {
       .catch((err) => console.error("💥 Keep-alive failed:", err.message));
   }, 240_000);
 });
+
+export default app;
