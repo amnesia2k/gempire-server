@@ -7,6 +7,11 @@ import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
+// 🌟 Rate limiting imports
+import { rateLimit } from "express-rate-limit";
+import { RedisStore, RedisReply } from "rate-limit-redis";
+import RedisClient from "ioredis";
+
 const app = express();
 const PORT = process.env.PORT || 8000;
 
@@ -14,12 +19,55 @@ const PORT = process.env.PORT || 8000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🧱 Middleware
+// 🚨 Redis client with event listeners for connection health
+const redis = new RedisClient({
+  host: process.env.REDIS_HOST ?? "127.0.0.1",
+  port: Number(process.env.REDIS_PORT ?? 6379),
+  password: process.env.REDIS_PASSWORD || undefined,
+  tls: process.env.REDIS_TLS === "true" ? {} : undefined, // Upstash requires TLS
+});
+
+redis.on("connect", () => console.log("🔌 Redis connected"));
+redis.on("error", (err) => console.error("⚠️ Redis error:", err));
+redis.on("end", () => console.warn("⚠️ Redis connection closed"));
+
+// 🛡️ Rate limiter with Redis store fallback (basic no-limit if Redis down)
+let limiterMiddleware: express.RequestHandler = (req, res, next) => next();
+
+try {
+  const limiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 5, // 5 requests max per IP per window
+    standardHeaders: true,
+    legacyHeaders: false,
+
+    store: new RedisStore({
+      sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
+        redis.call(command, ...args) as Promise<RedisReply>,
+    }),
+
+    handler: (req, res) => {
+      res.status(429).json({
+        message: "Too many requests – slow down, champ 🐢",
+      });
+    },
+  });
+
+  limiterMiddleware = limiter;
+  console.log("✅ Rate limiter initialized with Redis");
+} catch (err) {
+  console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+}
+
+// 🧱 Core middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// 🧠 Route loader (flat style, no auto-mounting file names)
+// Apply rate limiter BEFORE routes
+app.use("/api/v1", limiterMiddleware);
+
+// 🧠 Dynamic route loader (flat)
 async function loadRoutesFlat() {
   const routesDir = path.join(__dirname, "routes");
 
@@ -66,7 +114,7 @@ loadRoutesFlat().then(() => {
     console.log(`🚀 Server ready at http://localhost:${PORT}`);
   });
 
-  // 💓 Keep-alive for Neon (every 4 mins)
+  // 💓 Neon keep-alive ping every 4 mins
   setInterval(() => {
     db.execute(sql`SELECT 1`)
       .then(() => console.log("💓 Keep-alive ping sent"))
