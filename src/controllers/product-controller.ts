@@ -15,6 +15,7 @@ import { safeUploadToCloudinary } from "../utils/safe-upload";
 import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
+import redisClient from "../utils/redis";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -78,35 +79,33 @@ export const createProduct = async (req: Request, res: Response) => {
 };
 
 export const getAllProducts = async (_req: Request, res: Response) => {
+  const cacheKey = "products:all";
+
   try {
-    // 1. Fetch all products
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
+
+    // Your existing DB fetch code here...
+
     const allProducts = await db
       .select()
       .from(products)
       .orderBy(desc(products.createdAt));
-
     if (allProducts.length === 0) throwNotFound("No products found");
 
-    // 2. Fetch all images
     const productIds = allProducts.map((p) => p._id);
     const allImages = await db
       .select()
       .from(productImages)
       .where(inArray(productImages.productId, productIds));
+    // build imagesByProductId...
 
-    const imagesByProductId: Record<string, typeof allImages> = {};
-    allImages.forEach((img) => {
-      if (!imagesByProductId[img.productId]) {
-        imagesByProductId[img.productId] = [];
-      }
-      imagesByProductId[img.productId].push(img);
-    });
-
-    // 3. Fetch all categories (after filtering out nulls)
     const categoryIds = [
       ...new Set(allProducts.map((p) => p.categoryId).filter(Boolean)),
     ] as string[];
-
     const allCategories = categoryIds.length
       ? await db
           .select({
@@ -122,22 +121,25 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       allCategories.map((cat) => [cat._id, cat])
     );
 
-    // 4. Merge everything together
     const productsWithData = allProducts.map((product) => ({
       ...product,
-      images: imagesByProductId[product._id] || [],
+      images: allImages.filter((img) => img.productId === product._id),
       category: product.categoryId
         ? categoryMap[product.categoryId] || null
         : null,
     }));
 
-    res.status(200).json({
+    const responsePayload = {
       message: "Products fetched successfully",
       success: true,
       data: productsWithData,
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
     });
 
-    return;
+    res.status(200).json(responsePayload);
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -146,38 +148,36 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       });
     } else {
       console.error("Unhandled error:", error);
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
+      throwServerError("Something went wrong");
     }
   }
 };
 
 export const getProductBySlug = async (req: Request, res: Response) => {
+  const { slug } = req.params;
+  if (!slug) return throwBadRequest("Slug is required");
+
+  const cacheKey = `product:${slug}`;
+
   try {
-    const { slug } = req.params;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
 
-    if (!slug) throwBadRequest("Slug is required");
-
+    // Your existing fetch logic...
     const [product] = await db
       .select()
       .from(products)
       .where(eq(products.slug, slug))
       .limit(1);
-
     if (!product) throwNotFound("Product not found");
 
     const images = await db
       .select()
       .from(productImages)
       .where(eq(productImages.productId, product._id));
-
     let categoryData = null;
     if (product.categoryId) {
       [categoryData] = await db
@@ -186,32 +186,25 @@ export const getProductBySlug = async (req: Request, res: Response) => {
         .where(eq(category._id, product.categoryId));
     }
 
-    res.status(200).json({
+    const responsePayload = {
       success: true,
       message: "Product fetched",
-      data: {
-        ...product,
-        images,
-        category: categoryData || null,
-      },
+      data: { ...product, images, category: categoryData || null },
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
     });
+
+    res.status(200).json(responsePayload);
   } catch (error: unknown) {
     if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-        success: false,
-      });
+      res
+        .status(error.statusCode)
+        .json({ message: error.message, success: false });
     } else {
       console.error("Unhandled error:", error);
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
+      throwServerError("Something went wrong");
     }
   }
 };

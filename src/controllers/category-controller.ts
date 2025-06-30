@@ -10,6 +10,7 @@ import {
   throwNotFound,
   throwServerError,
 } from "../utils/error";
+import redisClient from "../utils/redis";
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
@@ -69,16 +70,33 @@ export const createCategory = async (req: Request, res: Response) => {
 };
 
 export const getAllCategories = async (_req: Request, res: Response) => {
-  try {
-    const categories = await db.select().from(category);
+  const cacheKey = "categories:all";
 
+  try {
+    // 1. Check Redis cache
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      // console.log("Cache hit for categories");
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
+
+    // 2. Cache miss → fetch from DB
+    const categories = await db.select().from(category);
     if (categories.length === 0) throw throwNotFound("No categories found");
 
-    res.status(200).json({
+    const responsePayload = {
       message: "Categories fetched successfully",
       success: true,
       data: categories,
+    };
+
+    // 3. Store in Redis cache with TTL (600 seconds = 10 minutes)
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
     });
+
+    res.status(200).json(responsePayload);
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -87,43 +105,42 @@ export const getAllCategories = async (_req: Request, res: Response) => {
       });
     } else {
       console.error("Unhandled error:", error);
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
+      throwServerError("Something went wrong");
     }
   }
 };
 
 export const getCategoryById = async (req: Request, res: Response) => {
-  try {
-    const { slug } = req.params;
+  const { slug } = req.params;
+  if (!slug) return throwBadRequest("Category id is required");
 
-    if (!slug) throwBadRequest("Category id is required");
+  const cacheKey = `category:${slug}`;
+
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
 
     const categoryData = await db.query.category.findFirst({
       where: eq(category.slug, slug),
-      with: {
-        products: {
-          with: {
-            images: true,
-          },
-        },
-      },
+      with: { products: { with: { images: true } } },
     });
 
     if (!categoryData) throwNotFound("Category not found");
 
-    res.status(200).json({
+    const responsePayload = {
       message: "Category Products fetched successfully",
       success: true,
       data: categoryData,
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
     });
+
+    res.status(200).json(responsePayload);
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -132,15 +149,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
       });
     } else {
       console.error("Unhandled error:", error);
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
+      throwServerError("Something went wrong");
     }
   }
 };
