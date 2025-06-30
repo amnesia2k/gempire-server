@@ -85,6 +85,8 @@ export const getAllProducts = async (_req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       res.status(200).json(JSON.parse(cached));
+      // console.log("Cache hit for products:", cached);
+
       return;
     }
 

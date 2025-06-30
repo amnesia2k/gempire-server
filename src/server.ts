@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
 
 // 🚨 Redis client with event listeners for connection health
 const redis = new RedisClient({
-  host: process.env.REDIS_HOST ?? "127.0.0.1",
+  host: process.env.REDIS_HOST,
   port: Number(process.env.REDIS_PORT ?? 6379),
   password: process.env.REDIS_PASSWORD || undefined,
   tls: process.env.REDIS_TLS === "true" ? {} : undefined, // Upstash requires TLS
@@ -37,7 +37,7 @@ let limiterMiddleware: express.RequestHandler = (req, res, next) => next();
 try {
   const limiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 5, // 5 requests max per IP per window
+    max: 50, // 50 requests max per IP per window
     standardHeaders: true,
     legacyHeaders: false,
 
