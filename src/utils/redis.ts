@@ -1,4 +1,3 @@
-// src/config/redis.ts
 import RedisClient from "ioredis";
 
 // Prefer REDIS_URL if provided, otherwise fall back to host/port
