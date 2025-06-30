@@ -1,3 +1,4 @@
+// src/server.ts
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -6,11 +7,7 @@ import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-
-// 🌟 Rate limiting imports
-import { rateLimit } from "express-rate-limit";
-import { RedisStore, RedisReply } from "rate-limit-redis";
-import RedisClient from "ioredis";
+import { limiterMiddleware } from "./utils/rate-limiter";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -18,46 +15,6 @@ const PORT = process.env.PORT || 8000;
 // 🧭 Fix __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// 🚨 Redis client with event listeners for connection health
-const redis = new RedisClient({
-  host: process.env.REDIS_HOST,
-  port: Number(process.env.REDIS_PORT ?? 6379),
-  password: process.env.REDIS_PASSWORD || undefined,
-  tls: process.env.REDIS_TLS === "true" ? {} : undefined, // Upstash requires TLS
-});
-
-redis.on("connect", () => console.log("🔌 Redis connected"));
-redis.on("error", (err) => console.error("⚠️ Redis error:", err));
-redis.on("end", () => console.warn("⚠️ Redis connection closed"));
-
-// 🛡️ Rate limiter with Redis store fallback (basic no-limit if Redis down)
-let limiterMiddleware: express.RequestHandler = (req, res, next) => next();
-
-try {
-  const limiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 50, // 50 requests max per IP per window
-    standardHeaders: true,
-    legacyHeaders: false,
-
-    store: new RedisStore({
-      sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
-        redis.call(command, ...args) as Promise<RedisReply>,
-    }),
-
-    handler: (req, res) => {
-      res.status(429).json({
-        message: "Too many requests – slow down, champ 🐢",
-      });
-    },
-  });
-
-  limiterMiddleware = limiter;
-  console.log("✅ Rate limiter initialized with Redis");
-} catch (err) {
-  console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-}
 
 // 🧱 Core middleware
 app.use(cors({ origin: true, credentials: true }));

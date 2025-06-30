@@ -43,6 +43,12 @@ export const createCategory = async (req: Request, res: Response) => {
       .values(newCategory)
       .returning();
 
+    // After creating/updating a category, invalidate relevant caches
+    // Invalidate the 'categories:all' cache to ensure fresh data on next request
+    await redisClient.del("categories:all");
+    // If you had a cache for specific categories, you'd invalidate that too, e.g.:
+    // await redisClient.del(`category:${slug}`);
+
     res.status(201).json({
       success: true,
       message: "Category created successfully",
@@ -74,9 +80,10 @@ export const getAllCategories = async (_req: Request, res: Response) => {
 
   try {
     // 1. Check Redis cache
+    // The .get() and .set() methods work the same for ioredis as for node-redis
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      // console.log("Cache hit for categories");
+      console.log("Cache hit for categories:", cached);
       res.status(200).json(JSON.parse(cached));
       return;
     }
@@ -92,9 +99,8 @@ export const getAllCategories = async (_req: Request, res: Response) => {
     };
 
     // 3. Store in Redis cache with TTL (600 seconds = 10 minutes)
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    // For ioredis, use "EX" as a separate argument
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
@@ -136,9 +142,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
       data: categoryData,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
   } catch (error: unknown) {

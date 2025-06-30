@@ -46,6 +46,18 @@ export const createProduct = async (req: Request, res: Response) => {
         .limit(1);
     }
 
+    // --- CACHE INVALIDATION ---
+    // Invalidate the 'products:all' cache to ensure fresh data on next request
+    await redisClient.del("products:all");
+    // Also invalidate the cache for the specific product's slug if it exists (though unlikely right after creation)
+    await redisClient.del(`product:${result.product.slug}`);
+    // If you cache categories by products, you might need to invalidate relevant category caches too
+    if (cat?.slug) {
+      await redisClient.del(`category:${cat.slug}`);
+      await redisClient.del("categories:all"); // Potentially, if products affect overall category listings
+    }
+    // --- END CACHE INVALIDATION ---
+
     res.status(201).json({
       message: "Product created successfully",
       success: true,
@@ -85,12 +97,10 @@ export const getAllProducts = async (_req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       res.status(200).json(JSON.parse(cached));
-      // console.log("Cache hit for products:", cached);
+      console.log("Cache hit for products:", cached);
 
       return;
     }
-
-    // Your existing DB fetch code here...
 
     const allProducts = await db
       .select()
@@ -103,7 +113,6 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       .select()
       .from(productImages)
       .where(inArray(productImages.productId, productIds));
-    // build imagesByProductId...
 
     const categoryIds = [
       ...new Set(allProducts.map((p) => p.categoryId).filter(Boolean)),
@@ -137,9 +146,8 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       data: productsWithData,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    // Store in Redis cache with TTL (600 seconds = 10 minutes)
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
@@ -168,7 +176,6 @@ export const getProductBySlug = async (req: Request, res: Response) => {
       return;
     }
 
-    // Your existing fetch logic...
     const [product] = await db
       .select()
       .from(products)
@@ -194,9 +201,7 @@ export const getProductBySlug = async (req: Request, res: Response) => {
       data: { ...product, images, category: categoryData || null },
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
@@ -313,6 +318,30 @@ export const editProduct = async (req: Request, res: Response) => {
       .where(eq(products._id, productId))
       .returning();
 
+    // --- CACHE INVALIDATION ---
+    // Invalidate the 'products:all' cache
+    await redisClient.del("products:all");
+    // Invalidate the cache for this specific product (using old and new slugs)
+    await redisClient.del(`product:${slug}`);
+    if (newSlug !== slug) {
+      await redisClient.del(`product:${newSlug}`);
+    }
+    // If the category changed, invalidate the old and new category's product caches if any
+    if (categoryId && categoryId !== existingProduct.categoryId) {
+      // Find old category slug if needed
+      // const [oldCat] = await db.select(...).from(category).where(eq(category._id, existingProduct.categoryId));
+      // if (oldCat) await redisClient.del(`category:${oldCat.slug}`);
+      // Invalidate the new category's products cache
+      const [newCat] = await db
+        .select({ slug: category.slug })
+        .from(category)
+        .where(eq(category._id, categoryId));
+      if (newCat) await redisClient.del(`category:${newCat.slug}`);
+    }
+    // Also invalidate 'categories:all' if products influence them
+    await redisClient.del("categories:all");
+    // --- END CACHE INVALIDATION ---
+
     res.status(200).json({
       success: true,
       message: "Product updated successfully",
@@ -365,6 +394,22 @@ export const deleteProduct = async (req: Request, res: Response) => {
 
     await db.delete(productImages).where(eq(productImages.productId, id));
     await db.delete(products).where(eq(products._id, id));
+
+    // --- CACHE INVALIDATION ---
+    // Invalidate the 'products:all' cache
+    await redisClient.del("products:all");
+    // Invalidate the cache for this specific product
+    await redisClient.del(`product:${product.slug}`);
+    // If the product was associated with a category, invalidate that category's cache
+    if (product.categoryId) {
+      const [cat] = await db
+        .select({ slug: category.slug })
+        .from(category)
+        .where(eq(category._id, product.categoryId));
+      if (cat) await redisClient.del(`category:${cat.slug}`);
+      await redisClient.del("categories:all"); // if categories listing is affected
+    }
+    // --- END CACHE INVALIDATION ---
 
     res.status(200).json({
       success: true,
