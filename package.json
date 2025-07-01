@@ -12,9 +12,6 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "migrate:prod": "dotenv -e .env.production -- drizzle-kit migrate",
-    "generate:local": "dotenv -e .env.development -- drizzle-kit generate",
-    "generate:prod": "dotenv -e .env.production -- drizzle-kit generate",
-    "migrate:local": "dotenv -e .env.development -- drizzle-kit migrate",
     "backfill": "tsx src/scripts/backfill-slug.ts",
     "db:studio": "drizzle-kit studio",
     "db:drop": "drizzle-kit drop"
