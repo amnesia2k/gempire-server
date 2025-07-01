@@ -1,7 +1,7 @@
-// src/server.ts
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -21,7 +21,20 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Apply rate limiter BEFORE routes
+// 🗜️ Add GZIP compression (with smart client opt-out filter)
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) return false;
+
+      req.headers["accept-encoding"] = "gzip";
+      return compression.filter(req, res);
+    },
+  })
+);
+
+// 🛡️ Apply rate limiter BEFORE routes
 app.use("/api/v1", limiterMiddleware);
 
 // 🧠 Dynamic route loader (flat)
@@ -61,7 +74,7 @@ async function loadRoutesFlat() {
   // 500 handler
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error("💥 Internal Server Error:", err.stack);
-    res.status(500).json({ message: "Something broke!" });
+    res.status(500).json({ message: "Something broke!", status: 500 });
   });
 }
 
@@ -71,7 +84,7 @@ loadRoutesFlat().then(() => {
     console.log(`🚀 Server ready at http://localhost:${PORT}`);
   });
 
-  // 💓 Neon keep-alive ping every 4 mins
+  // 💓 db keep-alive ping every 4 mins
   setInterval(() => {
     db.execute(sql`SELECT 1`)
       .then(() => console.log("💓 Keep-alive ping sent"))

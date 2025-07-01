@@ -1,6 +1,5 @@
 import RedisClient from "ioredis";
 
-// Prefer REDIS_URL if provided, otherwise fall back to host/port
 const redis = process.env.REDIS_URL
   ? new RedisClient(process.env.REDIS_URL)
   : new RedisClient({
@@ -20,4 +19,4 @@ redis.on("reconnecting", (delay: number) =>
 );
 redis.on("ready", () => console.log("🔌 Redis client ready"));
 
-export default redis; // Export this single instance
+export default redis;
