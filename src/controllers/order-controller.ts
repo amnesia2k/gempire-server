@@ -115,9 +115,9 @@ export const getOrders = async (_req: Request, res: Response) => {
       data: allOrders,
     };
 
-    // 3. Store in Redis cache with TTL (e.g., 60 seconds)
+    // 3. Store in Redis cache with TTL (e.g., 10 minutes)
     // Adjust TTL based on how frequently orders might change or need to be seen
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 60);
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
   } catch (error) {
@@ -194,8 +194,8 @@ export const getOrderById = async (req: Request, res: Response) => {
       },
     };
 
-    // 3. Store in Redis cache with TTL (e.g., 60 seconds)
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 60);
+    // 3. Store in Redis cache with TTL (e.g., 10 minutes)
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     // ✅ Respond with order and enriched items
     res.status(200).json(responsePayload);

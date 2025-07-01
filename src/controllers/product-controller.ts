@@ -106,7 +106,16 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       .select()
       .from(products)
       .orderBy(desc(products.createdAt));
-    if (allProducts.length === 0) throwNotFound("No products found");
+
+    if (allProducts.length === 0) {
+      res.status(200).json({
+        message: "No products found",
+        success: true,
+        data: [],
+      });
+
+      return;
+    }
 
     const productIds = allProducts.map((p) => p._id);
     const allImages = await db

@@ -72,7 +72,7 @@ async function loadRoutesFlat() {
   });
 
   // 500 handler
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  app.use((err: Error, _req: Request, res: Response) => {
     console.error("💥 Internal Server Error:", err.stack);
     res.status(500).json({ message: "Something broke!", status: 500 });
   });
