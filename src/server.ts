@@ -16,6 +16,8 @@ const PORT = process.env.PORT || 8000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+app.set("trust proxy", 1);
+
 // 🧱 Core middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());

@@ -10,7 +10,7 @@ let limiterMiddleware = (req: Request, res: Response, next: NextFunction) =>
 try {
   const limiter = rateLimit({
     windowMs: 10 * 60 * 1000,
-    max: 15,
+    max: 5,
     standardHeaders: true,
     legacyHeaders: false,
 
