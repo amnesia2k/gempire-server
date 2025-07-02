@@ -16,6 +16,7 @@ import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
 import redisClient from "../utils/redis";
+import { safeInvalidateCategory } from "./category-controller";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -47,15 +48,16 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     // --- CACHE INVALIDATION ---
-    // Invalidate the 'products:all' cache to ensure fresh data on next request
+    // Invalidate general caches
     await redisClient.del("products:all");
-    // Also invalidate the cache for the specific product's slug if it exists (though unlikely right after creation)
     await redisClient.del(`product:${result.product.slug}`);
-    // If you cache categories by products, you might need to invalidate relevant category caches too
-    if (cat?.slug) {
-      await redisClient.del(`category:${cat.slug}`);
-      await redisClient.del("categories:all"); // Potentially, if products affect overall category listings
+    await redisClient.del("categories:all");
+
+    // Invalidate category-specific caches
+    if (result.product.categoryId) {
+      await safeInvalidateCategory(result.product.categoryId);
     }
+
     // --- END CACHE INVALIDATION ---
 
     res.status(201).json({
@@ -328,27 +330,24 @@ export const editProduct = async (req: Request, res: Response) => {
       .returning();
 
     // --- CACHE INVALIDATION ---
-    // Invalidate the 'products:all' cache
     await redisClient.del("products:all");
-    // Invalidate the cache for this specific product (using old and new slugs)
     await redisClient.del(`product:${slug}`);
     if (newSlug !== slug) {
       await redisClient.del(`product:${newSlug}`);
     }
-    // If the category changed, invalidate the old and new category's product caches if any
-    if (categoryId && categoryId !== existingProduct.categoryId) {
-      // Find old category slug if needed
-      // const [oldCat] = await db.select(...).from(category).where(eq(category._id, existingProduct.categoryId));
-      // if (oldCat) await redisClient.del(`category:${oldCat.slug}`);
-      // Invalidate the new category's products cache
-      const [newCat] = await db
-        .select({ slug: category.slug })
-        .from(category)
-        .where(eq(category._id, categoryId));
-      if (newCat) await redisClient.del(`category:${newCat.slug}`);
-    }
-    // Also invalidate 'categories:all' if products influence them
+
     await redisClient.del("categories:all");
+
+    // If category changed, invalidate both old and new
+    if (categoryId && categoryId !== existingProduct.categoryId) {
+      if (existingProduct.categoryId) {
+        await safeInvalidateCategory(existingProduct.categoryId);
+      }
+      await safeInvalidateCategory(categoryId);
+    } else if (existingProduct.categoryId) {
+      await safeInvalidateCategory(existingProduct.categoryId);
+    }
+
     // --- END CACHE INVALIDATION ---
 
     res.status(200).json({
@@ -405,19 +404,14 @@ export const deleteProduct = async (req: Request, res: Response) => {
     await db.delete(products).where(eq(products._id, id));
 
     // --- CACHE INVALIDATION ---
-    // Invalidate the 'products:all' cache
     await redisClient.del("products:all");
-    // Invalidate the cache for this specific product
     await redisClient.del(`product:${product.slug}`);
-    // If the product was associated with a category, invalidate that category's cache
+    await redisClient.del("categories:all");
+
     if (product.categoryId) {
-      const [cat] = await db
-        .select({ slug: category.slug })
-        .from(category)
-        .where(eq(category._id, product.categoryId));
-      if (cat) await redisClient.del(`category:${cat.slug}`);
-      await redisClient.del("categories:all"); // if categories listing is affected
+      await safeInvalidateCategory(product.categoryId);
     }
+
     // --- END CACHE INVALIDATION ---
 
     res.status(200).json({

@@ -3,7 +3,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { db } from "../db";
 import { category } from "../db/category-schema";
 import { slugify } from "../utils/slugify";
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import {
   AppError,
   throwBadRequest,
@@ -11,6 +11,37 @@ import {
   throwServerError,
 } from "../utils/error";
 import redisClient from "../utils/redis";
+import { products } from "../db/product-schema";
+import { productImages } from "../db/product-images-schema";
+
+export const invalidateCategoryPages = async (slug: string) => {
+  try {
+    const keys = await redisClient.keys(`category:${slug}:page:*`);
+    if (keys.length > 0) {
+      await redisClient.del(...keys);
+      console.log(`🧹 Invalidated ${keys.length} paginated caches for ${slug}`);
+    }
+  } catch (err) {
+    console.error("Cache invalidation failed:", err);
+  }
+};
+
+export const safeInvalidateCategory = async (
+  categoryId: string | null | undefined
+) => {
+  if (!categoryId) return;
+
+  const [cat] = await db
+    .select({ slug: category.slug })
+    .from(category)
+    .where(eq(category._id, categoryId));
+
+  if (cat?.slug) {
+    await invalidateCategoryPages(cat.slug);
+    await redisClient.del(`category:${cat.slug}`);
+    console.log(`✅ Cache invalidated for category: ${cat.slug}`);
+  }
+};
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
@@ -118,39 +149,86 @@ export const getAllCategories = async (_req: Request, res: Response) => {
 
 export const getCategoryById = async (req: Request, res: Response) => {
   const { slug } = req.params;
-  if (!slug) return throwBadRequest("Category id is required");
+  const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+  const limit = Math.min(parseInt(req.query.limit as string) || 12, 100);
+  const offset = (page - 1) * limit;
 
-  const cacheKey = `category:${slug}`;
+  if (!slug) return throwBadRequest("Category slug is required");
+
+  const cacheKey = `category:${slug}:page:${page}:limit:${limit}`;
 
   try {
+    // 1. Check Redis cache
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       res.status(200).json(JSON.parse(cached));
+
       return;
     }
 
-    const categoryData = await db.query.category.findFirst({
-      where: eq(category.slug, slug),
-      with: { products: { with: { images: true } } },
-    });
+    // 2. Get category metadata
+    const [categoryData] = await db
+      .select({ _id: category._id, name: category.name, slug: category.slug })
+      .from(category)
+      .where(eq(category.slug, slug));
 
     if (!categoryData) throwNotFound("Category not found");
 
+    const categoryId = categoryData._id;
+
+    // 3. Get total product count in this category
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(eq(products.categoryId, categoryId));
+
+    const total = Number(count);
+    const totalPages = Math.ceil(total / limit);
+
+    // 4. Get paginated products
+    const productList = await db
+      .select()
+      .from(products)
+      .where(eq(products.categoryId, categoryId))
+      .orderBy(desc(products.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // 5. Attach images
+    const productIds = productList.map((p) => p._id);
+    const allImages = productIds.length
+      ? await db
+          .select()
+          .from(productImages)
+          .where(inArray(productImages.productId, productIds))
+      : [];
+
+    const productsWithImages = productList.map((product) => ({
+      ...product,
+      images: allImages.filter((img) => img.productId === product._id),
+    }));
+
     const responsePayload = {
-      message: "Category Products fetched successfully",
+      message: "Category products fetched successfully",
       success: true,
-      data: categoryData,
+      data: {
+        category: categoryData,
+        products: productsWithImages,
+      },
+      total,
+      page,
+      limit,
+      totalPages,
     };
 
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
 
     res.status(200).json(responsePayload);
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-        success: false,
-      });
+      res
+        .status(error.statusCode)
+        .json({ message: error.message, success: false });
     } else {
       console.error("Unhandled error:", error);
       throwServerError("Something went wrong");

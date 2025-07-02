@@ -26,7 +26,7 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
       legacyHeaders: false,
       handler: (_req: Request, res: Response) => {
         res.status(429).json({
-          message: "Too many requests – slow down, champ 🐢",
+          message: `Too many requests – slow down and try again in 10 minutes`,
         });
       },
     });
