@@ -4,11 +4,15 @@ import {
   getAllCategories,
   getCategoryById,
 } from "../controllers/category-controller";
+import { createRateLimiter } from "../utils/rate-limiter";
 
 const router = Router();
 
-router.post("/category", createCategory);
-router.get("/categories", getAllCategories);
-router.get("/category/:slug", getCategoryById);
+const categoriesRateLimiter = createRateLimiter("categories", 15);
+const categoryRateLimiter = createRateLimiter("category", 5);
+
+router.post("/category", categoryRateLimiter, createCategory);
+router.get("/categories", categoriesRateLimiter, getAllCategories);
+router.get("/category/:slug", categoriesRateLimiter, getCategoryById);
 
 export default router;

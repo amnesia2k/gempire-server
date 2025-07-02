@@ -4,10 +4,13 @@ import {
   getAdmin,
   logoutAdmin,
 } from "../controllers/admin-controller";
+import { createRateLimiter } from "../utils/rate-limiter";
 
 const router = express.Router();
 
-router.post("/login", accessDashboard);
+const accessRateLimiter = createRateLimiter("access", 5);
+
+router.post("/login", accessRateLimiter, accessDashboard);
 router.post("/logout", logoutAdmin);
 router.get("/admin", getAdmin);
 

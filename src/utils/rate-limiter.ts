@@ -1,36 +1,83 @@
-// src/config/rateLimiter.ts
 import { rateLimit } from "express-rate-limit";
 import { RedisStore, RedisReply } from "rate-limit-redis";
 import redis from "./redis";
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 
-let limiterMiddleware = (req: Request, res: Response, next: NextFunction) =>
-  next();
+export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
+  try {
+    console.log("✅ Rate limiter initialized with Redis");
 
-try {
-  const limiter = rateLimit({
-    windowMs: 10 * 60 * 1000,
-    max: 15,
-    standardHeaders: true,
-    legacyHeaders: false,
+    return rateLimit({
+      windowMs: 10 * 60 * 1000,
+      max: maxTries,
+      keyGenerator: (req: Request) => {
+        const ip = req.ip;
+        const path = req.originalUrl.split("?")[0];
+        return `${keyPrefix}:${ip}:${path}`;
+      },
+      store: new RedisStore({
+        sendCommand: (
+          command: string,
+          ...args: string[]
+        ): Promise<RedisReply> =>
+          redis.call(command, ...args) as Promise<RedisReply>,
+      }),
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: (_req: Request, res: Response) => {
+        res.status(429).json({
+          message: "Too many requests – slow down, champ 🐢",
+        });
+      },
+    });
+  } catch (err) {
+    console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+    console.error(err);
+    return (_req: Request, _res: Response, next: Function) => next();
+  }
+};
 
-    store: new RedisStore({
-      sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
-        redis.call(command, ...args) as Promise<RedisReply>,
-    }),
+// // src/config/rateLimiter.ts
+// import { rateLimit } from "express-rate-limit";
+// import { RedisStore, RedisReply } from "rate-limit-redis";
+// import redis from "./redis";
+// import { NextFunction, Request, Response } from "express";
 
-    handler: (req, res) => {
-      res.status(429).json({
-        message: "Too many requests – slow down, champ 🐢",
-      });
-    },
-  });
+// let limiterMiddleware = (req: Request, res: Response, next: NextFunction) =>
+//   next();
 
-  limiterMiddleware = limiter;
-  console.log("✅ Rate limiter initialized with Redis");
-} catch (err) {
-  console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-  console.error(err);
-}
+// try {
+//   const limiter = rateLimit({
+//     windowMs: 10 * 60 * 1000,
+//     max: 15,
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//     skipSuccessfulRequests: true,
 
-export { limiterMiddleware };
+//     keyGenerator: (req: Request) => {
+//       const ip = req.ip;
+//       const path = req.originalUrl.split("?")[0];
+
+//       return `${keyPrefix}`
+//     },
+
+//     store: new RedisStore({
+//       sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
+//         redis.call(command, ...args) as Promise<RedisReply>,
+//     }),
+
+//     handler: (req, res) => {
+//       res.status(429).json({
+//         message: "Too many requests – slow down, champ 🐢",
+//       });
+//     },
+//   });
+
+//   limiterMiddleware = limiter;
+//   console.log("✅ Rate limiter initialized with Redis");
+// } catch (err) {
+//   console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+//   console.error(err);
+// }
+
+// export { limiterMiddleware };

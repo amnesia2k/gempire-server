@@ -6,14 +6,18 @@ import {
   updateOrderStatus,
 } from "../controllers/order-controller";
 import multer from "multer";
+import { createRateLimiter } from "../utils/rate-limiter";
 
 const upload = multer();
 
 const router = express.Router();
 
-router.post("/order", upload.none(), createOrder);
-router.get("/orders", getOrders);
-router.get("/order/:id", getOrderById);
-router.patch("/order/:id/status", updateOrderStatus);
+const ordersRateLimiter = createRateLimiter("orders", 15);
+const orderRateLimiter = createRateLimiter("order", 5);
+
+router.post("/order", orderRateLimiter, upload.none(), createOrder);
+router.get("/orders", ordersRateLimiter, getOrders);
+router.get("/order/:id", ordersRateLimiter, getOrderById);
+router.patch("/order/:id/status", orderRateLimiter, updateOrderStatus);
 
 export default router;

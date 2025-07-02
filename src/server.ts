@@ -7,7 +7,6 @@ import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import { limiterMiddleware } from "./utils/rate-limiter";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -35,9 +34,6 @@ app.use(
     },
   })
 );
-
-// 🛡️ Apply rate limiter BEFORE routes
-app.use("/api/v1", limiterMiddleware);
 
 // 🧠 Dynamic route loader (flat)
 async function loadRoutesFlat() {
