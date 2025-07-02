@@ -4,7 +4,7 @@ import { throwBadRequest } from "./error";
 
 export async function safeUploadToCloudinary(
   file: Express.Multer.File,
-  retries = 2
+  retries = 5
 ): Promise<{ url: string; publicId: string }> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

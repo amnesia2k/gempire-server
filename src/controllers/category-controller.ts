@@ -162,7 +162,58 @@ export const getCategoryById = async (req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       res.status(200).json(JSON.parse(cached));
+      return;
+    }
 
+    // 🛍️ Handle "All Products" pseudo-category
+    if (slug === "all") {
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(products);
+
+      const total = Number(count);
+      const totalPages = Math.ceil(total / limit);
+
+      const productList = await db
+        .select()
+        .from(products)
+        .orderBy(desc(products.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const productIds = productList.map((p) => p._id);
+      const allImages = productIds.length
+        ? await db
+            .select()
+            .from(productImages)
+            .where(inArray(productImages.productId, productIds))
+        : [];
+
+      const productsWithImages = productList.map((product) => ({
+        ...product,
+        images: allImages.filter((img) => img.productId === product._id),
+      }));
+
+      const responsePayload = {
+        message: "All products fetched successfully",
+        success: true,
+        data: {
+          category: { name: "All Products", slug: "all" },
+          products: productsWithImages,
+        },
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+
+      await redisClient.set(
+        cacheKey,
+        JSON.stringify(responsePayload),
+        "EX",
+        600
+      );
+      res.status(200).json(responsePayload);
       return;
     }
 
@@ -222,7 +273,6 @@ export const getCategoryById = async (req: Request, res: Response) => {
     };
 
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
-
     res.status(200).json(responsePayload);
   } catch (error) {
     if (error instanceof AppError) {

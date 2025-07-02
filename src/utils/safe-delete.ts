@@ -3,7 +3,7 @@ import { throwBadRequest } from "./error";
 
 export async function safeDeleteFromCloudinary(
   publicId: string,
-  retries = 2
+  retries = 5
 ): Promise<void> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
