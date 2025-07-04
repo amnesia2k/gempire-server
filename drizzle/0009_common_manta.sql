@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ALTER COLUMN "deliveryMethod" DROP DEFAULT;

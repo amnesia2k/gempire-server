@@ -9,7 +9,7 @@ import {
 import { relations } from "drizzle-orm";
 import { products } from "./product-schema";
 
-// 🔘 Enum for order status
+// 🔘 Enums
 export const orderStatusEnum = pgEnum("order_status", [
   "ordered",
   "shipped",
@@ -17,15 +17,21 @@ export const orderStatusEnum = pgEnum("order_status", [
   "cancelled",
 ]);
 
+export const deliveryMethodEnum = pgEnum("delivery_method", [
+  "delivery",
+  "pickup",
+]);
+
 // 📦 Orders Table
 export const orders = pgTable("orders", {
-  _id: varchar({ length: 255 }).primaryKey(), // Internal ID (e.g. cuid)
-  orderId: varchar({ length: 255 }).notNull().unique(), // Display ID (e.g. ORDER-2506-1234)
+  _id: varchar({ length: 255 }).primaryKey(), // Internal ID
+  orderId: varchar({ length: 255 }).notNull().unique(), // Display ID
   name: varchar({ length: 255 }).notNull(),
   address: varchar({ length: 255 }).notNull(),
   telephone: varchar({ length: 20 }).notNull(),
   email: varchar({ length: 255 }).notNull(),
   note: varchar({ length: 500 }),
+  deliveryMethod: deliveryMethodEnum().notNull(), // 🆕 New field
   status: orderStatusEnum().notNull().default("ordered"),
   createdAt: timestamp().notNull().defaultNow(),
 });
@@ -43,7 +49,7 @@ export const orderItems = pgTable("order_items", {
   unitPrice: numeric({ precision: 10, scale: 2 }).notNull(),
 });
 
-// 🔄 Orders ↔ OrderItems
+// 🔄 Relations
 export const ordersRelations = relations(orders, ({ many }) => ({
   items: many(orderItems),
 }));
