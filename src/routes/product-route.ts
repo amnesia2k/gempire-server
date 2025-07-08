@@ -12,7 +12,6 @@ import { createRateLimiter } from "../utils/rate-limiter";
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const productsRateLimiter = createRateLimiter("products", 15);
 const productRateLimiter = createRateLimiter("product", 5);
 
 router.post(
@@ -21,8 +20,8 @@ router.post(
   upload.array("files"),
   createProduct
 );
-router.get("/products", productsRateLimiter, getAllProducts);
-router.get("/product/:slug", productsRateLimiter, getProductBySlug);
+router.get("/products", getAllProducts);
+router.get("/product/:slug", getProductBySlug);
 router.patch(
   "/product/:slug",
   productRateLimiter,

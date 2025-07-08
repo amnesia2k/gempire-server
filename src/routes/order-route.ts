@@ -12,12 +12,11 @@ const upload = multer();
 
 const router = express.Router();
 
-const ordersRateLimiter = createRateLimiter("orders", 15);
 const orderRateLimiter = createRateLimiter("order", 5);
 
 router.post("/order", orderRateLimiter, upload.none(), createOrder);
-router.get("/orders", ordersRateLimiter, getOrders);
-router.get("/order/:id", ordersRateLimiter, getOrderById);
+router.get("/orders", getOrders);
+router.get("/order/:id", getOrderById);
 router.patch("/order/:id/status", orderRateLimiter, updateOrderStatus);
 
 export default router;

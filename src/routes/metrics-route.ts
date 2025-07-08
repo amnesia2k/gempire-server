@@ -7,9 +7,7 @@ import {
 
 const router = express.Router();
 
-const metricsRateLimiter = createRateLimiter("orders", 15);
-
-router.get("/metrics", metricsRateLimiter, getMetrics);
-router.get("/sales", metricsRateLimiter, getSalesByPeriod);
+router.get("/metrics", getMetrics);
+router.get("/sales", getSalesByPeriod);
 
 export default router;
