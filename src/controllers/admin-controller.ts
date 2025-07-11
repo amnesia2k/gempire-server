@@ -12,6 +12,7 @@ import {
   throwUnauthorized,
 } from "../utils/error";
 import redisClient from "../utils/redis";
+import logger from "../utils/logger";
 
 type AccessRequestBody = { code: string };
 
@@ -55,7 +56,7 @@ export const accessDashboard = async (req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ success: false, message: error.message });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong.");
     }
   }
@@ -86,7 +87,7 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ message: error.message, success: false });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }
@@ -107,7 +108,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     // 1. Try cache
     const cachedAdmin = await redisClient.get(cacheKey);
     if (cachedAdmin) {
-      console.log("Cache hit for admin:", adminId);
+      logger.info("Cache hit for admin:", adminId);
       res.status(200).json({
         message: "Fetched admin data successfully (from cache)",
         data: JSON.parse(cachedAdmin),
@@ -134,7 +135,7 @@ export const getAdmin = async (req: Request, res: Response) => {
       success: true,
     });
   } catch (error) {
-    console.error("getAdmin error:", error);
+    logger.error("getAdmin error:", error);
     throwServerError("Something went wrong");
   }
 };

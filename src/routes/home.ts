@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import logger from "../utils/logger";
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ router.get("/", (req: Request, res: Response) => {
       res.send(`<h1>🧠 Gempire backend is alive!</h1>`);
     }
   } catch (error) {
-    console.error("Error handling request:", error);
+    logger.error("Error handling request:", error);
     res.status(500).json({
       message: "Internal server error",
       error: error instanceof Error ? error.message : "Unknown error",

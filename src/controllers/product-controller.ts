@@ -17,6 +17,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
 import redisClient from "../utils/redis";
 import { safeInvalidateCategory } from "./category-controller";
+import logger from "../utils/logger";
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -78,7 +79,7 @@ export const createProduct = async (req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
 
       const message =
         error instanceof Error
@@ -99,7 +100,7 @@ export const getAllProducts = async (_req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       res.status(200).json(JSON.parse(cached));
-      console.log("Cache hit for products:", cached);
+      logger.info("Cache hit for products:", cached);
 
       return;
     }
@@ -168,7 +169,7 @@ export const getAllProducts = async (_req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }
@@ -221,7 +222,7 @@ export const getProductBySlug = async (req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ message: error.message, success: false });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }
@@ -366,7 +367,7 @@ export const editProduct = async (req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       const message =
         error instanceof Error
           ? error.message
@@ -425,7 +426,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       const message =
         error instanceof Error
           ? error.message

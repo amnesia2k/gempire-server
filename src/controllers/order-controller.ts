@@ -9,15 +9,11 @@ import {
 import { products } from "../db/product-schema";
 import { createId } from "@paralleldrive/cuid2";
 import { eq, inArray, desc } from "drizzle-orm";
-import {
-  AppError,
-  throwBadRequest,
-  throwNotFound,
-  throwServerError,
-} from "../utils/error";
+import { AppError, throwBadRequest, throwNotFound } from "../utils/error";
 import { generateHybridId } from "../utils/id";
 import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
+import logger from "../utils/logger";
 
 // 1️⃣ Create new order
 export const createOrder = async (req: Request, res: Response) => {
@@ -241,7 +237,7 @@ function handleControllerError(
       message: error.message,
     });
   } else {
-    console.error("Unhandled error:", error);
+    logger.error("Unhandled error:", error);
     if (!res.headersSent) {
       const message =
         error instanceof Error

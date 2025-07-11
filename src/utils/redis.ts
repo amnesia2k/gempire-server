@@ -1,4 +1,5 @@
 import RedisClient from "ioredis";
+import logger from "./logger";
 
 const redis = process.env.REDIS_URL
   ? new RedisClient(process.env.REDIS_URL)
@@ -9,14 +10,14 @@ const redis = process.env.REDIS_URL
       tls: process.env.REDIS_TLS === "true" ? {} : undefined,
     });
 
-redis.on("connect", () => console.log("🔌 Redis connected"));
+redis.on("connect", () => logger.info("🔌 Redis connected"));
 redis.on("error", (err) =>
-  console.error("⚠️ Redis connection error:", err.message)
+  logger.error("⚠️ Redis connection error:", err.message)
 );
-redis.on("end", () => console.warn("⚠️ Redis connection closed"));
+redis.on("end", () => logger.warn("⚠️ Redis connection closed"));
 redis.on("reconnecting", (delay: number) =>
-  console.log(`🔌 Redis reconnecting in ${delay}ms...`)
+  logger.info(`🔌 Redis reconnecting in ${delay}ms...`)
 );
-redis.on("ready", () => console.log("🔌 Redis client ready"));
+redis.on("ready", () => logger.info("🔌 Redis client ready"));
 
 export default redis;

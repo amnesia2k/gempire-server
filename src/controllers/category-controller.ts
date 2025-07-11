@@ -13,16 +13,17 @@ import {
 import redisClient from "../utils/redis";
 import { products } from "../db/product-schema";
 import { productImages } from "../db/product-images-schema";
+import logger from "../utils/logger";
 
 export const invalidateCategoryPages = async (slug: string) => {
   try {
     const keys = await redisClient.keys(`category:${slug}:page:*`);
     if (keys.length > 0) {
       await redisClient.del(...keys);
-      console.log(`🧹 Invalidated ${keys.length} paginated caches for ${slug}`);
+      logger.info(`🧹 Invalidated ${keys.length} paginated caches for ${slug}`);
     }
   } catch (err) {
-    console.error("Cache invalidation failed:", err);
+    logger.error("Cache invalidation failed:", err);
   }
 };
 
@@ -39,7 +40,7 @@ export const safeInvalidateCategory = async (
   if (cat?.slug) {
     await invalidateCategoryPages(cat.slug);
     await redisClient.del(`category:${cat.slug}`);
-    console.log(`✅ Cache invalidated for category: ${cat.slug}`);
+    logger.info(`✅ Cache invalidated for category: ${cat.slug}`);
   }
 };
 
@@ -92,7 +93,7 @@ export const createCategory = async (req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
 
       const message =
         error instanceof Error
@@ -114,7 +115,7 @@ export const getAllCategories = async (_req: Request, res: Response) => {
     // The .get() and .set() methods work the same for ioredis as for node-redis
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      console.log("Cache hit for categories:", cached);
+      logger.info("Cache hit for categories:", cached);
       res.status(200).json(JSON.parse(cached));
       return;
     }
@@ -141,7 +142,7 @@ export const getAllCategories = async (_req: Request, res: Response) => {
         success: false,
       });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }
@@ -192,6 +193,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
       const productsWithImages = productList.map((product) => ({
         ...product,
         images: allImages.filter((img) => img.productId === product._id),
+        category: null,
       }));
 
       const responsePayload = {
@@ -245,7 +247,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
-    // 5. Attach images
+    // 5. Attach images + category
     const productIds = productList.map((p) => p._id);
     const allImages = productIds.length
       ? await db
@@ -257,6 +259,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
     const productsWithImages = productList.map((product) => ({
       ...product,
       images: allImages.filter((img) => img.productId === product._id),
+      category: categoryData,
     }));
 
     const responsePayload = {
@@ -280,7 +283,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ message: error.message, success: false });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }

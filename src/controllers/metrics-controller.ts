@@ -5,6 +5,7 @@ import { orders, orderItems } from "../db/order-schema";
 import { eq, sql } from "drizzle-orm";
 import { AppError, throwServerError } from "../utils/error";
 import { generateDateLabels } from "../utils/date-range";
+import logger from "../utils/logger";
 
 type SalesRow = {
   label: string;
@@ -46,7 +47,7 @@ export const getMetrics = async (_req: Request, res: Response) => {
       data: metrics,
     });
   } catch (error) {
-    console.error("Metrics error:", error);
+    logger.error("Metrics error:", error);
     if (error instanceof AppError) {
       res
         .status(error.statusCode)
@@ -101,7 +102,7 @@ export const getSalesByPeriod = async (req: Request, res: Response) => {
 
     const rows = result.rows as SalesRow[];
 
-    console.log("Raw rows returned:", rows);
+    logger.info("Raw rows returned:", rows);
 
     const dataMap = new Map(
       rows.map((r) => [r.label.trim(), parseFloat(r.total)])
@@ -120,7 +121,7 @@ export const getSalesByPeriod = async (req: Request, res: Response) => {
       data: responseData,
     });
   } catch (error) {
-    console.error("Metrics error:", error);
+    logger.error("Metrics error:", error);
     throwServerError("Failed to fetch metrics");
   }
 };

@@ -2,10 +2,11 @@ import { rateLimit } from "express-rate-limit";
 import { RedisStore, RedisReply } from "rate-limit-redis";
 import redis from "./redis";
 import { Request, Response } from "express";
+import logger from "./logger";
 
 export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
   try {
-    console.log("✅ Rate limiter initialized with Redis");
+    logger.info("✅ Rate limiter initialized with Redis");
 
     return rateLimit({
       windowMs: 10 * 60 * 1000,
@@ -31,8 +32,8 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
       },
     });
   } catch (err) {
-    console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-    console.error(err);
+    logger.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+    logger.error(err);
     return (_req: Request, _res: Response, next: Function) => next();
   }
 };
@@ -74,10 +75,10 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
 //   });
 
 //   limiterMiddleware = limiter;
-//   console.log("✅ Rate limiter initialized with Redis");
+//   logger.info("✅ Rate limiter initialized with Redis");
 // } catch (err) {
-//   console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-//   console.error(err);
+//   logger.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+//   logger.error(err);
 // }
 
 // export { limiterMiddleware };
