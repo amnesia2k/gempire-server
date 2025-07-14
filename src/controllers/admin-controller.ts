@@ -13,13 +13,13 @@ import {
 } from "../utils/error";
 import redisClient from "../utils/redis";
 import logger from "../utils/logger";
+import { invalidateAdminCaches } from "../utils/cache-invalidation";
 
 type AccessRequestBody = { code: string };
 
 export const accessDashboard = async (req: Request, res: Response) => {
   try {
     const { code } = req.body as AccessRequestBody;
-
     if (!code) throwBadRequest("Passcode is required");
 
     const [passcode] = await db
@@ -31,8 +31,8 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
     const token = generateToken(passcode._id);
 
-    // Invalidate admin cache after login (optional, useful if admin data changed)
-    await redisClient.del(`admin:${passcode._id}`);
+    // ❌ Invalidate all admin cache after successful login
+    await invalidateAdminCaches();
 
     res.setHeader("Cache-Control", "no-store");
 
@@ -69,7 +69,9 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
         _id: string;
       };
-      await redisClient.del(`admin:${decoded._id}`);
+
+      // 🔥 Clean single admin cache or all (your call)
+      await invalidateAdminCaches();
     }
 
     res.setHeader("Cache-Control", "no-store");

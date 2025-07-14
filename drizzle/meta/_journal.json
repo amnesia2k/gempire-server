@@ -71,6 +71,13 @@
       "when": 1751557903759,
       "tag": "0009_common_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1752493953746,
+      "tag": "0010_round_supernaut",
+      "breakpoints": true
     }
   ]
 }

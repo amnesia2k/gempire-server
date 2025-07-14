@@ -15,10 +15,15 @@ import { safeUploadToCloudinary } from "../utils/safe-upload";
 import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
-import redisClient from "../utils/redis";
+import {
+  invalidateProductCaches,
+  invalidateAllCategoryCaches,
+} from "../utils/cache-invalidation";
 import { safeInvalidateCategory } from "./category-controller";
 import logger from "../utils/logger";
+import redisClient from "../utils/redis";
 
+// 📦 Create Product
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { name, description, price, unit, categoryId } = req.body;
@@ -38,7 +43,6 @@ export const createProduct = async (req: Request, res: Response) => {
       files,
     });
 
-    // Fetch category details
     let cat = null;
     if (result.product.categoryId) {
       [cat] = await db
@@ -48,18 +52,12 @@ export const createProduct = async (req: Request, res: Response) => {
         .limit(1);
     }
 
-    // --- CACHE INVALIDATION ---
-    // Invalidate general caches
-    await redisClient.del("products:all");
-    await redisClient.del(`product:${result.product.slug}`);
-    await redisClient.del("categories:all");
-
-    // Invalidate category-specific caches
+    // 🧹 Cache invalidation
+    await invalidateProductCaches();
+    await invalidateAllCategoryCaches();
     if (result.product.categoryId) {
       await safeInvalidateCategory(result.product.categoryId);
     }
-
-    // --- END CACHE INVALIDATION ---
 
     res.status(201).json({
       message: "Product created successfully",
@@ -70,8 +68,6 @@ export const createProduct = async (req: Request, res: Response) => {
         slug: result.product.slug,
       },
     });
-
-    return;
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
@@ -80,28 +76,20 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     } else {
       logger.error("Unhandled error:", error);
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
+      throwServerError("Something went wrong.");
     }
   }
 };
 
+// 🛒 Get All Products
 export const getAllProducts = async (_req: Request, res: Response) => {
   const cacheKey = "products:all";
 
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
+      logger.info("Cache hit for products");
       res.status(200).json(JSON.parse(cached));
-      logger.info("Cache hit for products:", cached);
-
       return;
     }
 
@@ -111,13 +99,11 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       .orderBy(desc(products.createdAt));
 
     if (allProducts.length === 0) {
-      res.status(200).json({
+      return res.status(200).json({
         message: "No products found",
         success: true,
         data: [],
       });
-
-      return;
     }
 
     const productIds = allProducts.map((p) => p._id);
@@ -158,23 +144,15 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       data: productsWithData,
     };
 
-    // Store in Redis cache with TTL (600 seconds = 10 minutes)
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
-
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-        success: false,
-      });
-    } else {
-      logger.error("Unhandled error:", error);
-      throwServerError("Something went wrong");
-    }
+    logger.error("Unhandled error:", error);
+    throwServerError("Something went wrong");
   }
 };
 
+// 🔍 Get Product by Slug
 export const getProductBySlug = async (req: Request, res: Response) => {
   const { slug } = req.params;
   if (!slug) return throwBadRequest("Slug is required");
@@ -191,14 +169,14 @@ export const getProductBySlug = async (req: Request, res: Response) => {
     const [product] = await db
       .select()
       .from(products)
-      .where(eq(products.slug, slug))
-      .limit(1);
+      .where(eq(products.slug, slug));
     if (!product) throwNotFound("Product not found");
 
     const images = await db
       .select()
       .from(productImages)
       .where(eq(productImages.productId, product._id));
+
     let categoryData = null;
     if (product.categoryId) {
       [categoryData] = await db
@@ -214,20 +192,14 @@ export const getProductBySlug = async (req: Request, res: Response) => {
     };
 
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
-
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
-    if (error instanceof AppError) {
-      res
-        .status(error.statusCode)
-        .json({ message: error.message, success: false });
-    } else {
-      logger.error("Unhandled error:", error);
-      throwServerError("Something went wrong");
-    }
+    logger.error("Unhandled error:", error);
+    throwServerError("Something went wrong");
   }
 };
 
+// ✏️ Edit Product
 export const editProduct = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
@@ -260,7 +232,6 @@ export const editProduct = async (req: Request, res: Response) => {
         .select()
         .from(products)
         .where(and(eq(products.slug, newSlug), ne(products._id, productId)));
-
       if (conflict) {
         throw throwBadRequest(
           `Another product already exists with name "${name}"`
@@ -268,7 +239,7 @@ export const editProduct = async (req: Request, res: Response) => {
       }
     }
 
-    // 🗑 Delete selected images from Cloudinary + DB
+    // 🗑 Delete selected images
     if (deletedImageIds.length > 0) {
       const imagesToDelete = await db
         .select()
@@ -330,16 +301,14 @@ export const editProduct = async (req: Request, res: Response) => {
       .where(eq(products._id, productId))
       .returning();
 
-    // --- CACHE INVALIDATION ---
-    await redisClient.del("products:all");
-    await redisClient.del(`product:${slug}`);
+    // 🧹 Cache invalidation
+    await invalidateProductCaches();
+    await invalidateAllCategoryCaches();
     if (newSlug !== slug) {
       await redisClient.del(`product:${newSlug}`);
     }
 
-    await redisClient.del("categories:all");
-
-    // If category changed, invalidate both old and new
+    // Invalidate old and new categories if changed
     if (categoryId && categoryId !== existingProduct.categoryId) {
       if (existingProduct.categoryId) {
         await safeInvalidateCategory(existingProduct.categoryId);
@@ -348,8 +317,6 @@ export const editProduct = async (req: Request, res: Response) => {
     } else if (existingProduct.categoryId) {
       await safeInvalidateCategory(existingProduct.categoryId);
     }
-
-    // --- END CACHE INVALIDATION ---
 
     res.status(200).json({
       success: true,
@@ -361,25 +328,12 @@ export const editProduct = async (req: Request, res: Response) => {
       },
     });
   } catch (error: unknown) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-        success: false,
-      });
-    } else {
-      logger.error("Unhandled error:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
-    }
+    logger.error("Unhandled error:", error);
+    throwServerError("Something went wrong");
   }
 };
 
+// ❌ Delete Product
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -404,37 +358,18 @@ export const deleteProduct = async (req: Request, res: Response) => {
     await db.delete(productImages).where(eq(productImages.productId, id));
     await db.delete(products).where(eq(products._id, id));
 
-    // --- CACHE INVALIDATION ---
-    await redisClient.del("products:all");
-    await redisClient.del(`product:${product.slug}`);
-    await redisClient.del("categories:all");
-
+    await invalidateProductCaches();
+    await invalidateAllCategoryCaches();
     if (product.categoryId) {
       await safeInvalidateCategory(product.categoryId);
     }
-
-    // --- END CACHE INVALIDATION ---
 
     res.status(200).json({
       success: true,
       message: "Product deleted successfully",
     });
   } catch (error: unknown) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        message: error.message,
-        success: false,
-      });
-    } else {
-      logger.error("Unhandled error:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
-
-      throwServerError("Something went wrong: " + message);
-    }
+    logger.error("Unhandled error:", error);
+    throwServerError("Something went wrong");
   }
 };

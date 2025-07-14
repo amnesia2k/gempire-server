@@ -25,10 +25,28 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
       }),
       standardHeaders: true,
       legacyHeaders: false,
-      handler: (_req: Request, res: Response) => {
-        res.status(429).json({
-          message: `Too many requests – slow down and try again in 10 minutes`,
-        });
+      handler: async (req: Request, res: Response) => {
+        try {
+          const ip = req.ip;
+          const path = req.originalUrl.split("?")[0];
+          const key = `${keyPrefix}:${ip}:${path}`;
+
+          // Get TTL in seconds for the rate limit key
+          const ttlSeconds = await redis.ttl(key);
+
+          const minutes = Math.floor(ttlSeconds / 60);
+          const seconds = ttlSeconds % 60;
+
+          res.status(429).json({
+            message: `Too many requests – slow down and try again in ${minutes}m ${seconds}s`,
+            retryAfterSeconds: ttlSeconds,
+          });
+        } catch (error) {
+          // fallback in case redis call fails
+          res.status(429).json({
+            message: `Too many requests – slow down and try again in 10 minutes`,
+          });
+        }
       },
     });
   } catch (err) {

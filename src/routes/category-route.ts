@@ -8,7 +8,7 @@ import { createRateLimiter } from "../utils/rate-limiter";
 
 const router = Router();
 
-const categoryRateLimiter = createRateLimiter("category", 5);
+const categoryRateLimiter = createRateLimiter("category", 10);
 
 router.post("/category", categoryRateLimiter, createCategory);
 router.get("/categories", getAllCategories);

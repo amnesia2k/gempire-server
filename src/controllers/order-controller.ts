@@ -1,11 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../db";
-import {
-  orders,
-  orderItems,
-  orderStatusEnum,
-  deliveryMethodEnum,
-} from "../db/order-schema";
+import { orders, orderItems, orderStatusEnum } from "../db/order-schema";
 import { products } from "../db/product-schema";
 import { createId } from "@paralleldrive/cuid2";
 import { eq, inArray, desc } from "drizzle-orm";
@@ -14,6 +9,12 @@ import { generateHybridId } from "../utils/id";
 import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
 import logger from "../utils/logger";
+
+import {
+  invalidateOrderCaches,
+  invalidateProductCaches,
+  invalidateAllCategoryCaches,
+} from "../utils/cache-invalidation";
 
 // 1️⃣ Create new order
 export const createOrder = async (req: Request, res: Response) => {
@@ -46,35 +47,67 @@ export const createOrder = async (req: Request, res: Response) => {
     const orderId = generateHybridId("order");
     const internalId = createId();
 
-    await db.insert(orders).values({
-      _id: internalId,
-      orderId,
-      name,
-      address,
-      telephone,
-      email,
-      note,
-      deliveryMethod, // ✅ include it
-    });
+    // 🌐 Start transaction
+    await db.transaction(async (tx) => {
+      await tx.insert(orders).values({
+        _id: internalId,
+        orderId,
+        name,
+        address,
+        telephone,
+        email,
+        note,
+        deliveryMethod,
+      });
 
-    const orderItemsData = items.map((item: any) => {
-      if (!item.productId || !item.unitPrice || !item.quantity) {
-        throwBadRequest(
-          "Each item must include productId, unitPrice, and quantity"
-        );
+      const orderItemsData = [];
+
+      for (const item of items) {
+        const { productId, quantity, unitPrice } = item;
+
+        if (!productId || !quantity || !unitPrice) {
+          throwBadRequest(
+            `Each item must include productId, unitPrice, and quantity.`
+          );
+        }
+
+        const [product] = await tx
+          .select({ unit: products.unit })
+          .from(products)
+          .where(eq(products._id, productId))
+          .limit(1);
+
+        if (!product) {
+          throwBadRequest(`Product with ID ${productId} not found`);
+        }
+
+        if (product.unit < quantity) {
+          throwBadRequest(
+            `Not enough stock for product ${productId}. Available: ${product.unit}, Requested: ${quantity}`
+          );
+        }
+
+        await tx
+          .update(products)
+          .set({ unit: product.unit - quantity })
+          .where(eq(products._id, productId));
+
+        orderItemsData.push({
+          _id: createId(),
+          orderId: internalId,
+          productId,
+          quantity,
+          unitPrice,
+        });
       }
 
-      return {
-        _id: createId(),
-        orderId: internalId,
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      };
+      await tx.insert(orderItems).values(orderItemsData);
     });
 
-    await db.insert(orderItems).values(orderItemsData);
-    await redisClient.del("orders:all");
+    // 🧹 Invalidate all related caches
+    await invalidateOrderCaches();
+    await invalidateProductCaches();
+    await invalidateAllCategoryCaches();
 
     res.status(201).json({
       success: true,
@@ -212,8 +245,7 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       .where(eq(orders._id, id))
       .returning();
 
-    await redisClient.del("orders:all");
-    await redisClient.del(`order:${id}`);
+    await invalidateOrderCaches(); // wipes `order:*` and `orders:all`
 
     res.status(200).json({
       success: true,
