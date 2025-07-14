@@ -12,13 +12,14 @@ import {
   throwUnauthorized,
 } from "../utils/error";
 import redisClient from "../utils/redis";
+import logger from "../utils/logger";
+import { invalidateAdminCaches } from "../utils/cache-invalidation";
 
 type AccessRequestBody = { code: string };
 
 export const accessDashboard = async (req: Request, res: Response) => {
   try {
     const { code } = req.body as AccessRequestBody;
-
     if (!code) throwBadRequest("Passcode is required");
 
     const [passcode] = await db
@@ -30,8 +31,8 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
     const token = generateToken(passcode._id);
 
-    // Invalidate admin cache after login (optional, useful if admin data changed)
-    await redisClient.del(`admin:${passcode._id}`);
+    // ❌ Invalidate all admin cache after successful login
+    await invalidateAdminCaches();
 
     res.setHeader("Cache-Control", "no-store");
 
@@ -55,7 +56,7 @@ export const accessDashboard = async (req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ success: false, message: error.message });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong.");
     }
   }
@@ -68,7 +69,9 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
         _id: string;
       };
-      await redisClient.del(`admin:${decoded._id}`);
+
+      // 🔥 Clean single admin cache or all (your call)
+      await invalidateAdminCaches();
     }
 
     res.setHeader("Cache-Control", "no-store");
@@ -86,7 +89,7 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
         .status(error.statusCode)
         .json({ message: error.message, success: false });
     } else {
-      console.error("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
     }
   }
@@ -107,7 +110,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     // 1. Try cache
     const cachedAdmin = await redisClient.get(cacheKey);
     if (cachedAdmin) {
-      console.log("Cache hit for admin:", adminId);
+      logger.info("Cache hit for admin:", adminId);
       res.status(200).json({
         message: "Fetched admin data successfully (from cache)",
         data: JSON.parse(cachedAdmin),
@@ -134,7 +137,7 @@ export const getAdmin = async (req: Request, res: Response) => {
       success: true,
     });
   } catch (error) {
-    console.error("getAdmin error:", error);
+    logger.error("getAdmin error:", error);
     throwServerError("Something went wrong");
   }
 };

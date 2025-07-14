@@ -2,9 +2,10 @@ import { db } from "../db";
 import { products } from "../db/product-schema";
 import { eq } from "drizzle-orm";
 import { slugify } from "../utils/slugify";
+import logger from "../utils/logger";
 
 async function backfillSlugs() {
-  console.log("🔁 Backfilling slugs...");
+  logger.info("🔁 Backfilling slugs...");
 
   const allProducts = await db.select().from(products);
 
@@ -19,18 +20,18 @@ async function backfillSlugs() {
       .set({ slug })
       .where(eq(products._id, product._id));
 
-    console.log(`✅ Slug updated for: ${product.name} → ${slug}`);
+    logger.info(`✅ Slug updated for: ${product.name} → ${slug}`);
   }
 
   if (allProducts.length === 0) {
-    console.log("⚠️ No products found — skipping backfill.");
+    logger.info("⚠️ No products found — skipping backfill.");
     return;
   }
 
-  console.log("🎉 Slug backfill complete!");
+  logger.info("🎉 Slug backfill complete!");
 }
 
 backfillSlugs().catch((err) => {
-  console.error("❌ Failed to backfill slugs:", err);
+  logger.error("❌ Failed to backfill slugs:", err);
   process.exit(1);
 });

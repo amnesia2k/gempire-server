@@ -2,10 +2,11 @@ import { rateLimit } from "express-rate-limit";
 import { RedisStore, RedisReply } from "rate-limit-redis";
 import redis from "./redis";
 import { Request, Response } from "express";
+import logger from "./logger";
 
 export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
   try {
-    console.log("✅ Rate limiter initialized with Redis");
+    logger.info("✅ Rate limiter initialized with Redis");
 
     return rateLimit({
       windowMs: 10 * 60 * 1000,
@@ -24,15 +25,33 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
       }),
       standardHeaders: true,
       legacyHeaders: false,
-      handler: (_req: Request, res: Response) => {
-        res.status(429).json({
-          message: `Too many requests – slow down and try again in 10 minutes`,
-        });
+      handler: async (req: Request, res: Response) => {
+        try {
+          const ip = req.ip;
+          const path = req.originalUrl.split("?")[0];
+          const key = `${keyPrefix}:${ip}:${path}`;
+
+          // Get TTL in seconds for the rate limit key
+          const ttlSeconds = await redis.ttl(key);
+
+          const minutes = Math.floor(ttlSeconds / 60);
+          const seconds = ttlSeconds % 60;
+
+          res.status(429).json({
+            message: `Too many requests – slow down and try again in ${minutes}m ${seconds}s`,
+            retryAfterSeconds: ttlSeconds,
+          });
+        } catch (error) {
+          // fallback in case redis call fails
+          res.status(429).json({
+            message: `Too many requests – slow down and try again in 10 minutes`,
+          });
+        }
       },
     });
   } catch (err) {
-    console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-    console.error(err);
+    logger.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+    logger.error(err);
     return (_req: Request, _res: Response, next: Function) => next();
   }
 };
@@ -74,10 +93,10 @@ export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
 //   });
 
 //   limiterMiddleware = limiter;
-//   console.log("✅ Rate limiter initialized with Redis");
+//   logger.info("✅ Rate limiter initialized with Redis");
 // } catch (err) {
-//   console.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
-//   console.error(err);
+//   logger.warn("⚠️ Redis rate limiter failed. Proceeding without limit.");
+//   logger.error(err);
 // }
 
 // export { limiterMiddleware };

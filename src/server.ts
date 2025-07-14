@@ -7,6 +7,7 @@ import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import logger from "./utils/logger";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -50,14 +51,14 @@ async function loadRoutesFlat() {
       const router = mod.default;
 
       if (typeof router !== "function") {
-        console.warn(`⚠️ Skipped ${file} (no default export router)`);
+        logger.warn(`⚠️ Skipped ${file} (no default export router)`);
         continue;
       }
 
       app.use("/api/v1", router);
-      console.log(`✅ Mounted routes from ${file} at /api/v1`);
+      logger.info(`✅ Mounted routes from ${file} at /api/v1`);
     } catch (err) {
-      console.error(`❌ Error loading ${file}:`, err);
+      logger.error(`❌ Error loading ${file}:`, err);
     }
   }
 
@@ -71,7 +72,7 @@ async function loadRoutesFlat() {
 
   // 500 handler
   app.use((err: Error, _req: Request, res: Response) => {
-    console.error("💥 Internal Server Error:", err.stack);
+    logger.error("💥 Internal Server Error:", err.stack);
     res.status(500).json({ message: "Something broke!", status: 500 });
   });
 }
@@ -79,14 +80,14 @@ async function loadRoutesFlat() {
 // 🚀 Start server and load routes
 loadRoutesFlat().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}`);
+    logger.info(`🚀 Server ready at http://localhost:${PORT}`);
   });
 
   // 💓 db keep-alive ping every 4 mins
   setInterval(() => {
     db.execute(sql`SELECT 1`)
-      .then(() => console.log("💓 Keep-alive ping sent"))
-      .catch((err) => console.error("💥 Keep-alive failed:", err.message));
+      .then(() => logger.info("💓 Keep-alive ping sent"))
+      .catch((err) => logger.error("💥 Keep-alive failed:", err.message));
   }, 240_000);
 });
 

@@ -8,7 +8,7 @@ import { createRateLimiter } from "../utils/rate-limiter";
 
 const router = express.Router();
 
-const accessRateLimiter = createRateLimiter("access", 5);
+const accessRateLimiter = createRateLimiter("access", 10);
 
 router.post("/login", accessRateLimiter, accessDashboard);
 router.post("/logout", logoutAdmin);
