@@ -99,11 +99,13 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       .orderBy(desc(products.createdAt));
 
     if (allProducts.length === 0) {
-      return res.status(200).json({
+      res.status(200).json({
         message: "No products found",
         success: true,
         data: [],
       });
+
+      return;
     }
 
     const productIds = allProducts.map((p) => p._id);

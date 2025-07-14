@@ -91,7 +91,8 @@ export const getAllCategories = async (_req: Request, res: Response) => {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       logger.info("📦 Cache hit for categories:all");
-      return res.status(200).json(JSON.parse(cached));
+      res.status(200).json(JSON.parse(cached));
+      return;
     }
 
     const categoriesList = await db.select().from(category);
@@ -131,7 +132,8 @@ export const getCategoryById = async (req: Request, res: Response) => {
 
   try {
     const cached = await redisClient.get(cacheKey);
-    if (cached) return res.status(200).json(JSON.parse(cached));
+    if (cached) res.status(200).json(JSON.parse(cached));
+    return;
 
     let categoryData = null;
     let productList = [];
