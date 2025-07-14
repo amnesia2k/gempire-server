@@ -87,6 +87,8 @@ export const createOrder = async (req: Request, res: Response) => {
       // Prepare orderItems data and update stock
       const orderItemsData = [];
 
+      // coming back later
+
       for (const item of items) {
         const product = productsInDB.find((p) => p.id === item.productId);
 
