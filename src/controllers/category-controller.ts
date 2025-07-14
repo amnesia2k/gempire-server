@@ -132,8 +132,10 @@ export const getCategoryById = async (req: Request, res: Response) => {
 
   try {
     const cached = await redisClient.get(cacheKey);
-    if (cached) res.status(200).json(JSON.parse(cached));
-    return;
+    if (cached) {
+      res.status(200).json(JSON.parse(cached));
+      return; // ✅ only return inside the condition
+    }
 
     let categoryData = null;
     let productList = [];
@@ -207,13 +209,13 @@ export const getCategoryById = async (req: Request, res: Response) => {
     };
 
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
-
     res.status(200).json(responsePayload);
   } catch (error) {
     if (error instanceof AppError) {
-      res
-        .status(error.statusCode)
-        .json({ message: error.message, success: false });
+      res.status(error.statusCode).json({
+        message: error.message,
+        success: false,
+      });
     } else {
       logger.error("Unhandled error:", error);
       throwServerError("Something went wrong");
