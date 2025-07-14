@@ -63,7 +63,7 @@ export const initializePayment = async (req: Request, res: Response) => {
       reference,
       email: order.email,
       amount: amountInKobo,
-      subaccount: "ACCT_40m22ih8x2mb2b0", // 👈 Replace with dynamic subaccount if needed
+      subaccount: "ACCT_i3dzr4mhkxizgo4", // 👈 Replace with dynamic subaccount if needed ACCT_40m22ih8x2mb2b0 - this is test
       transaction_charge: 100, // 👈 Fixed fee for buyer
       bearer: "subaccount", // 👈 Buyer pays fees, seller receives full amount
       callback_url: `http://localhost:3000/success?order-id=${order.orderId}&tx-ref=${reference}`,
