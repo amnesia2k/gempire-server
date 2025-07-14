@@ -47,8 +47,8 @@ export const createOrder = async (req: Request, res: Response) => {
     const orderId = generateHybridId("order");
     const internalId = createId();
 
-    // 🌐 Start transaction
     await db.transaction(async (tx) => {
+      // Insert order record
       await tx.insert(orders).values({
         _id: internalId,
         orderId,
@@ -60,51 +60,60 @@ export const createOrder = async (req: Request, res: Response) => {
         deliveryMethod,
       });
 
+      // Extract product IDs to fetch stock info in batch
+      const productIds = items.map(
+        (item: { productId: any }) => item.productId
+      );
+
+      // Fetch all products in one query
+      const productsInDB = await tx
+        .select({ id: products._id, stock: products.unit })
+        .from(products)
+        .where(inArray(products._id, productIds));
+
+      // Validate each item against fetched products
+      for (const item of items) {
+        const product = productsInDB.find((p) => p.id === item.productId);
+        if (!product) {
+          throwBadRequest(`Product with ID ${item.productId} not found`);
+        }
+        if (product && product.stock < item.quantity) {
+          throwBadRequest(
+            `Not enough stock for product ${item.productId}. Available: ${product.stock}, Requested: ${item.quantity}`
+          );
+        }
+      }
+
+      // Prepare orderItems data and update stock
       const orderItemsData = [];
 
       for (const item of items) {
-        const { productId, quantity, unitPrice } = item;
+        const product = productsInDB.find((p) => p.id === item.productId);
 
-        if (!productId || !quantity || !unitPrice) {
-          throwBadRequest(
-            `Each item must include productId, unitPrice, and quantity.`
-          );
-        }
-
-        const [product] = await tx
-          .select({ unit: products.unit })
-          .from(products)
-          .where(eq(products._id, productId))
-          .limit(1);
-
+        // Decrement stock for each product
         if (!product) {
-          throwBadRequest(`Product with ID ${productId} not found`);
+          throwBadRequest(`Product with ID ${item.productId} not found`);
+        } else {
+          await tx
+            .update(products)
+            .set({ unit: product.stock - item.quantity })
+            .where(eq(products._id, item.productId));
         }
-
-        if (product.unit < quantity) {
-          throwBadRequest(
-            `Not enough stock for product ${productId}. Available: ${product.unit}, Requested: ${quantity}`
-          );
-        }
-
-        await tx
-          .update(products)
-          .set({ unit: product.unit - quantity })
-          .where(eq(products._id, productId));
 
         orderItemsData.push({
           _id: createId(),
           orderId: internalId,
-          productId,
-          quantity,
-          unitPrice,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
         });
       }
 
+      // Insert all order items
       await tx.insert(orderItems).values(orderItemsData);
     });
 
-    // 🧹 Invalidate all related caches
+    // Invalidate caches after successful order creation
     await invalidateOrderCaches();
     await invalidateProductCaches();
     await invalidateAllCategoryCaches();
