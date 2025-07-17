@@ -9,6 +9,7 @@ import {
 import { adminPasscodes } from "./passcode-schema";
 import { productImages, productImagesRelations } from "./product-images-schema";
 import { products, productsRelations } from "./product-schema";
+import { promoCodes } from "./promo-schema";
 
 export const schema = {
   adminPasscodes,
@@ -23,4 +24,5 @@ export const schema = {
   orderItems,
   orderItemsRelations,
   orderStatusEnum,
+  promoCodes,
 };
