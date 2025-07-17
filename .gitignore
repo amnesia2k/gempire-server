@@ -38,3 +38,10 @@ Thumbs.db
 
 # Misc
 *.tgz
+
+# Docker
+.dockerignore
+Dockerfile
+README.Docker.md
+docker-entrypoint.sh
+nodemon.json

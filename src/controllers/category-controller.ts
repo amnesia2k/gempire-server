@@ -14,10 +14,6 @@ import redisClient from "../utils/redis";
 import { products } from "../db/product-schema";
 import { productImages } from "../db/product-images-schema";
 import logger from "../utils/logger";
-import {
-  invalidateAllCategoriesCache,
-  invalidateCategoryCachesBySlug,
-} from "../utils/cache-invalidation";
 
 export const safeInvalidateCategory = async (
   categoryId: string | null | undefined
@@ -30,7 +26,7 @@ export const safeInvalidateCategory = async (
     .where(eq(category._id, categoryId));
 
   if (cat?.slug) {
-    await invalidateCategoryCachesBySlug(cat.slug);
+    await redisClient.del(`category:${cat.slug}`);
   }
 };
 
@@ -62,7 +58,7 @@ export const createCategory = async (req: Request, res: Response) => {
       .values(newCategory)
       .returning();
 
-    await invalidateAllCategoriesCache(); // ❌ categories:all only
+    await redisClient.del("categories:all"); // ❌ categories:all only
 
     res.status(201).json({
       success: true,

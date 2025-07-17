@@ -38,10 +38,9 @@ export const orders = pgTable("orders", {
   status: orderStatusEnum().notNull().default("ordered"),
 
   // 🎁 Promo Code Info
-  promoCodeId: varchar({ length: 255 })
-    .references(() => promoCodes._id, { onDelete: "set null" })
-    .default(""),
-
+  promoCodeId: varchar({ length: 255 }).references(() => promoCodes._id, {
+    onDelete: "set null",
+  }),
   discountAmount: numeric({ precision: 10, scale: 2 }).default("0.00"),
 
   createdAt: timestamp().notNull().defaultNow(),

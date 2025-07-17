@@ -10,16 +10,20 @@ import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
 import logger from "../utils/logger";
 
-import {
-  invalidateOrderCaches,
-  invalidateProductCaches,
-  invalidateAllCategoryCaches,
-} from "../utils/cache-invalidation";
-
-// 1️⃣ Create new order
+// ------------------------
+// CREATE ORDER
+// ------------------------
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const { name, address, telephone, email, note, deliveryMethod } = req.body;
+    const {
+      name,
+      address,
+      telephone,
+      email,
+      note,
+      deliveryMethod,
+      promoCodeId,
+    } = req.body;
     let { items } = req.body;
 
     if (!name || !address || !telephone || !email) {
@@ -48,7 +52,6 @@ export const createOrder = async (req: Request, res: Response) => {
     const internalId = createId();
 
     await db.transaction(async (tx) => {
-      // Insert order record
       await tx.insert(orders).values({
         _id: internalId,
         orderId,
@@ -56,51 +59,38 @@ export const createOrder = async (req: Request, res: Response) => {
         address,
         telephone,
         email,
-        note,
+        note: note || null,
         deliveryMethod,
+        promoCodeId: promoCodeId || null,
       });
 
-      // Extract product IDs to fetch stock info in batch
       const productIds = items.map(
         (item: { productId: any }) => item.productId
       );
-
-      // Fetch all products in one query
       const productsInDB = await tx
         .select({ id: products._id, stock: products.unit })
         .from(products)
         .where(inArray(products._id, productIds));
 
-      // Validate each item against fetched products
       for (const item of items) {
         const product = productsInDB.find((p) => p.id === item.productId);
-        if (!product) {
+        if (!product)
           throwBadRequest(`Product with ID ${item.productId} not found`);
-        }
-        if (product && product.stock < item.quantity) {
+        if (product && product?.stock < item.quantity) {
           throwBadRequest(
             `Not enough stock for product ${item.productId}. Available: ${product.stock}, Requested: ${item.quantity}`
           );
         }
       }
 
-      // Prepare orderItems data and update stock
       const orderItemsData = [];
-
-      // coming back later
 
       for (const item of items) {
         const product = productsInDB.find((p) => p.id === item.productId);
-
-        // Decrement stock for each product
-        if (!product) {
-          throwBadRequest(`Product with ID ${item.productId} not found`);
-        } else {
-          await tx
-            .update(products)
-            .set({ unit: product.stock - item.quantity })
-            .where(eq(products._id, item.productId));
-        }
+        await tx
+          .update(products)
+          .set({ unit: product && product.stock - item.quantity })
+          .where(eq(products._id, item.productId));
 
         orderItemsData.push({
           _id: createId(),
@@ -111,14 +101,11 @@ export const createOrder = async (req: Request, res: Response) => {
         });
       }
 
-      // Insert all order items
       await tx.insert(orderItems).values(orderItemsData);
     });
 
-    // Invalidate caches after successful order creation
-    await invalidateOrderCaches();
-    await invalidateProductCaches();
-    await invalidateAllCategoryCaches();
+    // 🧹 Invalidate caches
+    await redisClient.del("orders:all");
 
     res.status(201).json({
       success: true,
@@ -130,15 +117,16 @@ export const createOrder = async (req: Request, res: Response) => {
   }
 };
 
-// 2️⃣ Get ALL orders
+// ------------------------
+// GET ALL ORDERS
+// ------------------------
 export const getOrders = async (_req: Request, res: Response) => {
   const cacheKey = "orders:all";
 
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
+      return res.status(200).json(JSON.parse(cached));
     }
 
     const allOrders = await db
@@ -161,7 +149,9 @@ export const getOrders = async (_req: Request, res: Response) => {
   }
 };
 
-// 3️⃣ Get single order by ID
+// ------------------------
+// GET SINGLE ORDER BY ID
+// ------------------------
 export const getOrderById = async (req: Request, res: Response) => {
   const { id } = req.params;
   if (!id) throwBadRequest("Order ID is required");
@@ -171,8 +161,7 @@ export const getOrderById = async (req: Request, res: Response) => {
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
+      return res.status(200).json(JSON.parse(cached));
     }
 
     const [order] = await db.select().from(orders).where(eq(orders._id, id));
@@ -182,7 +171,6 @@ export const getOrderById = async (req: Request, res: Response) => {
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, id));
-
     const productIds = items.map((item) => item.productId);
 
     const allProducts = await db
@@ -197,13 +185,8 @@ export const getOrderById = async (req: Request, res: Response) => {
 
     const productMap = allProducts.reduce((acc, product) => {
       const images = allImages.filter((img) => img.productId === product._id);
-      return {
-        ...acc,
-        [product._id]: {
-          ...product,
-          images,
-        },
-      };
+      acc[product._id] = { ...product, images };
+      return acc;
     }, {} as Record<string, typeof products.$inferSelect & { images: typeof allImages }>);
 
     const itemsWithProduct = items.map((item) => ({
@@ -227,7 +210,9 @@ export const getOrderById = async (req: Request, res: Response) => {
   }
 };
 
-// 4️⃣ Update Order Status
+// ------------------------
+// UPDATE ORDER STATUS
+// ------------------------
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -256,7 +241,9 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       .where(eq(orders._id, id))
       .returning();
 
-    await invalidateOrderCaches(); // wipes `order:*` and `orders:all`
+    // 🧹 Invalidate related caches
+    await redisClient.del("orders:all");
+    await redisClient.del(`order:${id}`);
 
     res.status(200).json({
       success: true,
@@ -268,17 +255,18 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
   }
 };
 
-// 🧠 Central Error Handler
+// ------------------------
+// ERROR HANDLER
+// ------------------------
 function handleControllerError(
   error: unknown,
   res: Response,
   fallbackMsg: string
 ) {
   if (error instanceof AppError) {
-    res.status(error.statusCode).json({
-      success: false,
-      message: error.message,
-    });
+    res
+      .status(error.statusCode)
+      .json({ success: false, message: error.message });
   } else {
     logger.error("Unhandled error:", error);
     if (!res.headersSent) {

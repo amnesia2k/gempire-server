@@ -8,6 +8,7 @@ export default defineConfig({
     "./src/db/product-images-schema.ts",
     "./src/db/category-schema.ts",
     "./src/db/order-schema.ts",
+    "./src/db/promo-schema.ts",
   ],
   dialect: "postgresql",
   dbCredentials: {

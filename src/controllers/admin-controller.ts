@@ -13,7 +13,6 @@ import {
 } from "../utils/error";
 import redisClient from "../utils/redis";
 import logger from "../utils/logger";
-import { invalidateAdminCaches } from "../utils/cache-invalidation";
 
 type AccessRequestBody = { code: string };
 
@@ -31,8 +30,12 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
     const token = generateToken(passcode._id);
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      _id: string;
+    };
+
     // ❌ Invalidate all admin cache after successful login
-    await invalidateAdminCaches();
+    await redisClient.del(`admin:${decoded._id}`);
 
     res.setHeader("Cache-Control", "no-store");
 
@@ -71,7 +74,7 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
       };
 
       // 🔥 Clean single admin cache or all (your call)
-      await invalidateAdminCaches();
+      await redisClient.del(`admin:${decoded._id}`);
     }
 
     res.setHeader("Cache-Control", "no-store");

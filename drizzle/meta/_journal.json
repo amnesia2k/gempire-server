@@ -78,6 +78,41 @@
       "when": 1752493953746,
       "tag": "0010_round_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1752690369315,
+      "tag": "0011_wooden_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1752755784484,
+      "tag": "0012_little_nico_minoru",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1752756289236,
+      "tag": "0013_sweet_sphinx",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1752757145611,
+      "tag": "0014_hard_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1752784812355,
+      "tag": "0015_red_stingray",
+      "breakpoints": true
     }
   ]
 }

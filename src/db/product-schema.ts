@@ -2,6 +2,7 @@ import {
   integer,
   numeric,
   pgTable,
+  text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -14,7 +15,7 @@ export const products = pgTable("products", {
   productId: varchar({ length: 255 }),
   name: varchar({ length: 255 }).notNull(),
   slug: varchar({ length: 255 }).notNull().unique(),
-  description: varchar({ length: 255 }).notNull(),
+  description: text().notNull(),
   price: numeric({ precision: 10, scale: 2 }).notNull(),
   unit: integer().notNull(),
   categoryId: varchar().references(() => category._id, {

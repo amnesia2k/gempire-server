@@ -15,10 +15,6 @@ import { safeUploadToCloudinary } from "../utils/safe-upload";
 import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
-import {
-  invalidateProductCaches,
-  invalidateAllCategoryCaches,
-} from "../utils/cache-invalidation";
 import { safeInvalidateCategory } from "./category-controller";
 import logger from "../utils/logger";
 import redisClient from "../utils/redis";
@@ -53,10 +49,10 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     // 🧹 Cache invalidation
-    await invalidateProductCaches();
-    await invalidateAllCategoryCaches();
+    await redisClient.del("products:all");
+    await redisClient.del("categories:all");
     if (result.product.categoryId) {
-      await safeInvalidateCategory(result.product.categoryId);
+      await safeInvalidateCategory(`category:${result.product.categoryId}`);
     }
 
     res.status(201).json({
@@ -75,7 +71,8 @@ export const createProduct = async (req: Request, res: Response) => {
         success: false,
       });
     } else {
-      logger.error("Unhandled error:", error);
+      // logger.error("Unhandled error:", error);
+      console.log("Unhandled error:", error);
       throwServerError("Something went wrong.");
     }
   }
@@ -303,9 +300,10 @@ export const editProduct = async (req: Request, res: Response) => {
       .where(eq(products._id, productId))
       .returning();
 
-    // 🧹 Cache invalidation
-    await invalidateProductCaches();
-    await invalidateAllCategoryCaches();
+    // Invalidate caches directly
+    await redisClient.del("products:all");
+    await redisClient.del("categories:all");
+    await redisClient.del(`product:${slug}`);
     if (newSlug !== slug) {
       await redisClient.del(`product:${newSlug}`);
     }
@@ -360,11 +358,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
     await db.delete(productImages).where(eq(productImages.productId, id));
     await db.delete(products).where(eq(products._id, id));
 
-    await invalidateProductCaches();
-    await invalidateAllCategoryCaches();
-    if (product.categoryId) {
-      await safeInvalidateCategory(product.categoryId);
-    }
+    await redisClient.del("products:all");
+    await redisClient.del("categories:all");
+    await redisClient.del(`product:${product.slug}`);
+    await redisClient.del(`category:${product.categoryId}`);
 
     res.status(200).json({
       success: true,
