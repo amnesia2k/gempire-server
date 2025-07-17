@@ -49,10 +49,12 @@ export const createPromo = async (req: Request, res: Response) => {
       .limit(1);
 
     if (existingCode.length > 0) {
-      return res.status(409).json({
+      res.status(409).json({
         success: false,
         message: "Promo code already exists.",
       });
+
+      return;
     }
 
     const newPromo = {
@@ -73,11 +75,13 @@ export const createPromo = async (req: Request, res: Response) => {
     // 🔥 Invalidate cached promos
     await redisClient.del(PROMO_CACHE_KEY);
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Promo code created successfully!",
       promoCode: result[0],
     });
+
+    return;
   } catch (error: any) {
     console.error("Error creating promo code:", error);
     throwServerError("Internal server error.");
@@ -90,22 +94,26 @@ export const allCodeDetails = async (_req: Request, res: Response) => {
     const cached = await redisClient.get(PROMO_CACHE_KEY);
 
     if (cached) {
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         message: "Promo codes retrieved from cache.",
         promoCodes: JSON.parse(cached),
       });
+
+      return;
     }
 
     // 🔥 Cache miss, fetch from DB
     const promos = await db.select().from(promoCodes);
 
     if (promos.length === 0) {
-      return res.status(200).json({
+      res.status(200).json({
         success: false,
         message: "No promo codes found.",
         promoCodes: [],
       });
+
+      return;
     }
 
     // Cache result for 10 mins
@@ -116,11 +124,13 @@ export const allCodeDetails = async (_req: Request, res: Response) => {
       CACHE_TTL
     );
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Promo codes retrieved successfully.",
       promoCodes: promos,
     });
+
+    return;
   } catch (error: any) {
     console.error("Error fetching all promo codes:", error);
     throwServerError("Internal server error.");
@@ -175,10 +185,12 @@ export const editCodeDetails = async (req: Request, res: Response) => {
         .limit(1);
 
       if (existing.length > 0 && existing[0]._id !== id) {
-        return res.status(409).json({
+        res.status(409).json({
           success: false,
           message: "Another promo code with this code already exists.",
         });
+
+        return;
       }
     }
 
@@ -193,11 +205,13 @@ export const editCodeDetails = async (req: Request, res: Response) => {
     // 🚀 Invalidate cache after update
     await redisClient.del(PROMO_CACHE_KEY);
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Promo code updated successfully!",
       promoCode: result[0],
     });
+
+    return;
   } catch (error: any) {
     console.error("Error updating promo code:", error);
     throwServerError("Internal server error.");

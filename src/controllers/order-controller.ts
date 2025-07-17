@@ -126,7 +126,8 @@ export const getOrders = async (_req: Request, res: Response) => {
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      return res.status(200).json(JSON.parse(cached));
+      res.status(200).json(JSON.parse(cached));
+      return;
     }
 
     const allOrders = await db
@@ -161,7 +162,8 @@ export const getOrderById = async (req: Request, res: Response) => {
   try {
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      return res.status(200).json(JSON.parse(cached));
+      res.status(200).json(JSON.parse(cached));
+      return;
     }
 
     const [order] = await db.select().from(orders).where(eq(orders._id, id));
