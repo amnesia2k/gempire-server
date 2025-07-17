@@ -10,7 +10,7 @@ import { sql } from "drizzle-orm";
 import logger from "./utils/logger";
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT;
 
 // 🧭 Fix __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
