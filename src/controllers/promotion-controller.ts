@@ -292,14 +292,14 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
     console.error("Error fetching promo code by code:", error);
 
     if (error instanceof AppError) {
-      return res.status(error.statusCode).json({
+      res.status(error.statusCode).json({
         success: error.success,
         message: error.message,
       });
     }
 
     // fallback for truly unknown errors
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: "Internal server error.",
     });
