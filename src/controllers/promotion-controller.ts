@@ -4,7 +4,9 @@ import { createId } from "@paralleldrive/cuid2";
 import { db } from "../db";
 import { promoCodes } from "../db/promo-schema";
 import {
+  AppError,
   throwBadRequest,
+  throwForbidden,
   throwNotFound,
   throwServerError,
 } from "../utils/error";
@@ -276,7 +278,7 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
       .where(eq(promoCodes.code, code.toUpperCase()))
       .limit(1);
 
-    if (!promo) throwNotFound("Promo code not found or inactive.");
+    if (!promo) throwForbidden("Invalid Promo code.");
     if (!promo.isActive) throwBadRequest("Promo code is not active.");
 
     await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600); // Cache for 10 minutes
@@ -288,6 +290,18 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Error fetching promo code by code:", error);
-    throwServerError("Internal server error.");
+
+    if (error instanceof AppError) {
+      return res.status(error.statusCode).json({
+        success: error.success,
+        message: error.message,
+      });
+    }
+
+    // fallback for truly unknown errors
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
   }
 };
