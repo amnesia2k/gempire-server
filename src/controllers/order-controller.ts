@@ -9,6 +9,7 @@ import { generateHybridId } from "../utils/id";
 import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
 import logger from "../utils/logger";
+import { promoCodes } from "../db/promo-schema";
 
 // ------------------------
 // CREATE ORDER
@@ -52,6 +53,57 @@ export const createOrder = async (req: Request, res: Response) => {
     const internalId = createId();
 
     await db.transaction(async (tx) => {
+      // 🔎 Fetch product info
+      const productIds = items.map(
+        (item: { productId: string }) => item.productId
+      );
+      const productsInDB = await tx
+        .select({
+          id: products._id,
+          stock: products.unit,
+          price: products.price,
+        })
+        .from(products)
+        .where(inArray(products._id, productIds));
+
+      let subtotal = 0;
+
+      // 🚨 Validate and calculate subtotal
+      for (const item of items) {
+        const product = productsInDB.find((p) => p.id === item.productId);
+        if (!product)
+          throwBadRequest(`Product with ID ${item.productId} not found`);
+        if (product && product.stock < item.quantity) {
+          throwBadRequest(`Not enough stock for product ${item.productId}`);
+        }
+
+        subtotal += parseFloat(item.unitPrice) * item.quantity;
+      }
+
+      // 💰 Handle Promo Code
+      let discountAmount = 0;
+
+      if (promoCodeId) {
+        const [promo] = await tx
+          .select()
+          .from(promoCodes)
+          .where(eq(promoCodes._id, promoCodeId));
+
+        if (!promo) throwBadRequest("Invalid promo code");
+
+        const discountValue = parseFloat(promo.discount);
+        if (promo.isPercentage) {
+          discountAmount = (discountValue / 100) * subtotal;
+        } else {
+          discountAmount = discountValue;
+        }
+
+        if (discountAmount > subtotal) discountAmount = subtotal;
+      }
+
+      const total = subtotal - discountAmount;
+
+      // 🧾 Create order
       await tx.insert(orders).values({
         _id: internalId,
         orderId,
@@ -62,27 +114,10 @@ export const createOrder = async (req: Request, res: Response) => {
         note: note || null,
         deliveryMethod,
         promoCodeId: promoCodeId || null,
+        discountAmount: discountAmount.toFixed(2),
       });
 
-      const productIds = items.map(
-        (item: { productId: any }) => item.productId
-      );
-      const productsInDB = await tx
-        .select({ id: products._id, stock: products.unit })
-        .from(products)
-        .where(inArray(products._id, productIds));
-
-      for (const item of items) {
-        const product = productsInDB.find((p) => p.id === item.productId);
-        if (!product)
-          throwBadRequest(`Product with ID ${item.productId} not found`);
-        if (product && product?.stock < item.quantity) {
-          throwBadRequest(
-            `Not enough stock for product ${item.productId}. Available: ${product.stock}, Requested: ${item.quantity}`
-          );
-        }
-      }
-
+      // 🛒 Update inventory and create order items
       const orderItemsData = [];
 
       for (const item of items) {
@@ -104,7 +139,6 @@ export const createOrder = async (req: Request, res: Response) => {
       await tx.insert(orderItems).values(orderItemsData);
     });
 
-    // 🧹 Invalidate caches
     await redisClient.del("orders:all");
 
     res.status(201).json({
