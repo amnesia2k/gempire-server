@@ -69,7 +69,7 @@ export const createPromo = async (req: Request, res: Response) => {
 
     const result = await db.insert(promoCodes).values(newPromo).returning();
 
-    // 🔥 Invalidate cached promos
+    // Invalidate cached promos
     await redisClient.del("promo:all");
 
     res.status(201).json({
@@ -87,7 +87,7 @@ export const createPromo = async (req: Request, res: Response) => {
 
 export const allCodeDetails = async (_req: Request, res: Response) => {
   try {
-    // 🚀 Try to get from Redis first
+    // Try to get from Redis first
     const cached = await redisClient.get("promo:all");
 
     if (cached) {
@@ -100,17 +100,10 @@ export const allCodeDetails = async (_req: Request, res: Response) => {
       return;
     }
 
-    // 🔥 Cache miss, fetch from DB
+    // Cache miss, fetch from DB
     const promos = await db.select().from(promoCodes);
 
     if (promos.length === 0) {
-      // res.status(200).json({
-      //   success: false,
-      //   message: "No promo codes found.",
-      //   promoCodes: [],
-      // });
-
-      // return;
       throwNotFound("No promo codes found.");
     }
 
@@ -169,7 +162,7 @@ export const editCodeDetails = async (req: Request, res: Response) => {
       throwBadRequest("No fields provided to update.");
     }
 
-    // 🚨 Check for code collision
+    // Check for code collision
     if (updateData.code) {
       const existing = await db
         .select()
@@ -195,7 +188,7 @@ export const editCodeDetails = async (req: Request, res: Response) => {
 
     if (result.length === 0) throwNotFound("Promo code not found.");
 
-    // 🚀 Invalidate cache after update
+    // Invalidate cache after update
     await redisClient.del("promo:all");
 
     res.status(200).json({
@@ -254,6 +247,47 @@ export const getSinglePromo = async (req: Request, res: Response) => {
     return;
   } catch (error: any) {
     console.error("Error fetching single promo code:", error);
+    throwServerError("Internal server error.");
+  }
+};
+
+// New controller to get promo code by its 'code' string
+export const getPromoCodeByCode = async (req: Request, res: Response) => {
+  try {
+    const { code } = req.params; // Expect the code in params, e.g., /api/promo/code/YOURCODE
+
+    if (!code) throwBadRequest("Promo code string is required.");
+
+    const cacheKey = `promo:code:${code.toUpperCase()}`;
+
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      res.status(200).json({
+        success: true,
+        message: "Promo code retrieved from cache by code.",
+        promoCode: JSON.parse(cached),
+      });
+      return;
+    }
+
+    const [promo] = await db
+      .select()
+      .from(promoCodes)
+      .where(eq(promoCodes.code, code.toUpperCase()))
+      .limit(1);
+
+    if (!promo) throwNotFound("Promo code not found or inactive.");
+    if (!promo.isActive) throwBadRequest("Promo code is not active.");
+
+    await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600); // Cache for 10 minutes
+
+    res.status(200).json({
+      success: true,
+      message: "Promo code retrieved by code from database.",
+      promoCode: promo,
+    });
+  } catch (error: any) {
+    console.error("Error fetching promo code by code:", error);
     throwServerError("Internal server error.");
   }
 };

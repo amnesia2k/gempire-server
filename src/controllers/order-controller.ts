@@ -23,7 +23,7 @@ export const createOrder = async (req: Request, res: Response) => {
       email,
       note,
       deliveryMethod,
-      promoCodeId,
+      promoCodeId, // <-- Added promoCodeId here
     } = req.body;
     let { items } = req.body;
 
@@ -71,8 +71,9 @@ export const createOrder = async (req: Request, res: Response) => {
       // 🚨 Validate and calculate subtotal
       for (const item of items) {
         const product = productsInDB.find((p) => p.id === item.productId);
-        if (!product)
+        if (!product) {
           throwBadRequest(`Product with ID ${item.productId} not found`);
+        }
         if (product && product.stock < item.quantity) {
           throwBadRequest(`Not enough stock for product ${item.productId}`);
         }
@@ -82,6 +83,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
       // 💰 Handle Promo Code
       let discountAmount = 0;
+      let appliedPromoCodeId = null; // Initialize to null
 
       if (promoCodeId) {
         const [promo] = await tx
@@ -89,7 +91,9 @@ export const createOrder = async (req: Request, res: Response) => {
           .from(promoCodes)
           .where(eq(promoCodes._id, promoCodeId));
 
-        if (!promo) throwBadRequest("Invalid promo code");
+        if (!promo || !promo.isActive) {
+          throwBadRequest("Invalid or inactive promo code");
+        }
 
         const discountValue = parseFloat(promo.discount);
         if (promo.isPercentage) {
@@ -98,10 +102,18 @@ export const createOrder = async (req: Request, res: Response) => {
           discountAmount = discountValue;
         }
 
-        if (discountAmount > subtotal) discountAmount = subtotal;
+        if (discountAmount > subtotal) {
+          discountAmount = subtotal; // Discount cannot exceed subtotal
+        }
+        appliedPromoCodeId = promo._id; // Store the actual promo code ID
       }
 
       const total = subtotal - discountAmount;
+      if (total < 0) {
+        // Should ideally not happen if discountAmount is capped at subtotal
+        // But as a safeguard
+        throwBadRequest("Calculated total is negative, something went wrong.");
+      }
 
       // 🧾 Create order
       await tx.insert(orders).values({
@@ -113,8 +125,8 @@ export const createOrder = async (req: Request, res: Response) => {
         email,
         note: note || null,
         deliveryMethod,
-        promoCodeId: promoCodeId || null,
-        discountAmount: discountAmount.toFixed(2),
+        promoCodeId: appliedPromoCodeId, // Use the determined appliedPromoCodeId
+        discountAmount: discountAmount.toFixed(2), // Store calculated discount
       });
 
       // 🛒 Update inventory and create order items
@@ -122,10 +134,13 @@ export const createOrder = async (req: Request, res: Response) => {
 
       for (const item of items) {
         const product = productsInDB.find((p) => p.id === item.productId);
-        await tx
-          .update(products)
-          .set({ unit: product && product.stock - item.quantity })
-          .where(eq(products._id, item.productId));
+        // Ensure product is found before attempting to update stock
+        if (product) {
+          await tx
+            .update(products)
+            .set({ unit: product.stock - item.quantity })
+            .where(eq(products._id, item.productId));
+        }
 
         orderItemsData.push({
           _id: createId(),
@@ -139,7 +154,7 @@ export const createOrder = async (req: Request, res: Response) => {
       await tx.insert(orderItems).values(orderItemsData);
     });
 
-    await redisClient.del("orders:all");
+    await redisClient.del("orders:all"); // Invalidate all orders cache
 
     res.status(201).json({
       success: true,
@@ -200,8 +215,21 @@ export const getOrderById = async (req: Request, res: Response) => {
       return;
     }
 
-    const [order] = await db.select().from(orders).where(eq(orders._id, id));
+    // Include promoCode relation in the query
+    const [order] = await db
+      .select()
+      .from(orders)
+      .leftJoin(promoCodes, eq(orders.promoCodeId, promoCodes._id))
+      .where(eq(orders._id, id));
+
     if (!order) throwNotFound("Order not found");
+
+    // Drizzle's select with joins might return nested objects or flattened.
+    // Adjust order object based on how Drizzle constructs the result.
+    const orderData = {
+      ...order.orders,
+      promoCode: order.promo_codes, // Drizzle typically aliases joined tables
+    };
 
     const items = await db
       .select()
@@ -234,7 +262,7 @@ export const getOrderById = async (req: Request, res: Response) => {
       success: true,
       message: "Order fetched successfully",
       data: {
-        ...order,
+        ...orderData,
         items: itemsWithProduct,
       },
     };
