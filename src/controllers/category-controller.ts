@@ -197,11 +197,11 @@ export const getCategoryById = async (req: Request, res: Response) => {
       data: {
         category: categoryData,
         products: productsWithImages,
+        total,
+        page,
+        limit,
+        totalPages,
       },
-      total,
-      page,
-      limit,
-      totalPages,
     };
 
     await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
