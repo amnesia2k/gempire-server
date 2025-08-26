@@ -8,9 +8,14 @@ import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import logger from "./utils/logger";
+import job from "./utils/cron";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+if (process.env.NODE_ENV === "production") {
+  job.start();
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
