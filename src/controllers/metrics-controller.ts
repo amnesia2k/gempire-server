@@ -5,7 +5,7 @@ import { orders, orderItems } from "../db/order-schema";
 import { eq, sql } from "drizzle-orm";
 import { AppError, throwServerError } from "../utils/error";
 import { generateDateLabels } from "../utils/date-range";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
 
 type SalesRow = {
   label: string;
@@ -30,9 +30,12 @@ export const getMetrics = async (_req: Request, res: Response) => {
 
     const [{ totalSales }] = await db
       .select({
-        totalSales: sql<number>`SUM(${orderItems.unitPrice} * ${orderItems.quantity})`,
+        // totalSales: sql<number>`SUM(${orderItems.unitPrice} * ${orderItems.quantity})`,
+        totalSales: sql<number>`COALESCE(SUM(${orderItems.unitPrice} * ${orderItems.quantity}), 0)`,
       })
-      .from(orderItems);
+      .from(orders)
+      .innerJoin(orderItems, eq(orders._id, orderItems.orderId))
+      .where(eq(orders.status, "delivered"));
 
     const metrics = {
       totalProducts: productCount ?? 0,
@@ -95,6 +98,7 @@ export const getSalesByPeriod = async (req: Request, res: Response) => {
         FROM "orders" o
         JOIN "order_items" oi ON o."_id" = oi."orderId"
         WHERE ${dateFilterSQL}
+          AND o."status" = 'delivered'   -- ✅ only successful orders
         GROUP BY label
         ORDER BY label
       `)

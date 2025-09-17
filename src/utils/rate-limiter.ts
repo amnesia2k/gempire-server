@@ -2,7 +2,7 @@ import { rateLimit } from "express-rate-limit";
 import { RedisStore, RedisReply } from "rate-limit-redis";
 import redis from "./redis";
 import { Request, Response } from "express";
-import logger from "./logger";
+import { logger } from "./logger";
 
 export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
   try {

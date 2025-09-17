@@ -1,13 +1,14 @@
 import RedisClient from "ioredis";
-import logger from "./logger";
+import { logger } from "./logger";
+import { env } from "./env";
 
-const redis = process.env.REDIS_URL
-  ? new RedisClient(process.env.REDIS_URL)
+const redis = env.REDIS_URL
+  ? new RedisClient(env.REDIS_URL)
   : new RedisClient({
-      host: process.env.REDIS_HOST || "127.0.0.1",
-      port: Number(process.env.REDIS_PORT ?? 6379),
-      password: process.env.REDIS_PASSWORD || undefined,
-      tls: process.env.REDIS_TLS === "true" ? {} : undefined,
+      host: env.REDIS_HOST || "127.0.0.1",
+      port: Number(env.REDIS_PORT ?? 6379),
+      password: env.REDIS_PASSWORD || undefined,
+      tls: env.REDIS_TLS === "true" ? {} : undefined,
     });
 
 redis.on("connect", () => logger.info("🔌 Redis connected"));

@@ -12,7 +12,8 @@ import {
   throwUnauthorized,
 } from "../utils/error";
 import redisClient from "../utils/redis";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
+import { env } from "../utils/env";
 
 type AccessRequestBody = { code: string };
 
@@ -30,7 +31,7 @@ export const accessDashboard = async (req: Request, res: Response) => {
 
     const token = generateToken(passcode._id);
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as {
       _id: string;
     };
 
@@ -69,7 +70,7 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
   try {
     const token = _req.cookies.token;
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      const decoded = jwt.verify(token, env.JWT_SECRET) as {
         _id: string;
       };
 
@@ -103,7 +104,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     const token = req.cookies.token;
     if (!token) throwUnauthorized("Admin token is required");
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as {
       _id: string;
     };
     const adminId = decoded._id;

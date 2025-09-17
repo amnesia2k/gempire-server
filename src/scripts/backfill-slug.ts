@@ -2,7 +2,7 @@ import { db } from "../db";
 import { products } from "../db/product-schema";
 import { eq } from "drizzle-orm";
 import { slugify } from "../utils/slugify";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
 
 async function backfillSlugs() {
   logger.info("🔁 Backfilling slugs...");

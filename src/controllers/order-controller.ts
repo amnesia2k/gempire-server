@@ -8,7 +8,7 @@ import { AppError, throwBadRequest, throwNotFound } from "../utils/error";
 import { generateHybridId } from "../utils/id";
 import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
 import { promoCodes } from "../db/promo-schema";
 
 // ------------------------

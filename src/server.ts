@@ -7,13 +7,14 @@ import fs from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import logger from "./utils/logger";
+import { logger } from "./utils/logger";
 import job from "./utils/cron";
+import { env } from "./utils/env";
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = env.PORT;
 
-if (process.env.NODE_ENV === "production") {
+if (env.NODE_ENV === "production") {
   job.start();
 }
 

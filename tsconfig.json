@@ -18,6 +18,11 @@
       "*": ["node_modules/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "drizzle.config.ts"], // <-- Added
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "drizzle.config.ts",
+    "src/utils/env.ts"
+  ], // <-- Added
   "exclude": ["node_modules", "dist"] // <-- Added
 }

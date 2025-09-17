@@ -13,7 +13,7 @@ import {
 import redisClient from "../utils/redis";
 import { products } from "../db/product-schema";
 import { productImages } from "../db/product-images-schema";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
 
 export const safeInvalidateCategory = async (
   categoryId: string | null | undefined

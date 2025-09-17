@@ -16,7 +16,7 @@ import { slugify } from "../utils/slugify";
 import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
 import { safeInvalidateCategory } from "./category-controller";
-import logger from "../utils/logger";
+import { logger } from "../utils/logger";
 import redisClient from "../utils/redis";
 
 // 📦 Create Product
@@ -72,7 +72,7 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     } else {
       // logger.error("Unhandled error:", error);
-      console.log("Unhandled error:", error);
+      logger.error("Unhandled error:", error);
       throwServerError("Something went wrong.");
     }
   }
