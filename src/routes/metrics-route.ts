@@ -7,7 +7,7 @@ import {
 
 const router = express.Router();
 
-router.get("/metrics", getMetrics);
+router.get("/", getMetrics);
 router.get("/sales", getSalesByPeriod);
 
 export default router;

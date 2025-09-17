@@ -14,20 +14,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const productRateLimiter = createRateLimiter("product", 5);
 
-router.post(
-  "/product",
-  productRateLimiter,
-  upload.array("files"),
-  createProduct
-);
-router.get("/products", getAllProducts);
-router.get("/product/:slug", getProductBySlug);
-router.patch(
-  "/product/:slug",
-  productRateLimiter,
-  upload.array("files"),
-  editProduct
-);
-router.delete("/product/:id", productRateLimiter, deleteProduct);
+router.post("/", productRateLimiter, upload.array("files"), createProduct);
+router.get("/all", getAllProducts);
+router.get("/:slug", getProductBySlug);
+router.patch("/:slug", productRateLimiter, upload.array("files"), editProduct);
+router.delete("/:id", productRateLimiter, deleteProduct);
 
 export default router;

@@ -14,9 +14,9 @@ const router = express.Router();
 
 const orderRateLimiter = createRateLimiter("order", 5);
 
-router.post("/order", orderRateLimiter, upload.none(), createOrder);
-router.get("/orders", getOrders);
-router.get("/order/:id", getOrderById);
-router.patch("/order/:id/status", orderRateLimiter, updateOrderStatus);
+router.post("/", orderRateLimiter, upload.none(), createOrder);
+router.get("/all", getOrders);
+router.get("/:id", getOrderById);
+router.patch("/:id/status", orderRateLimiter, updateOrderStatus);
 
 export default router;

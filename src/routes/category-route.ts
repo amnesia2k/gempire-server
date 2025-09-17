@@ -10,8 +10,8 @@ const router = Router();
 
 const categoryRateLimiter = createRateLimiter("category", 10);
 
-router.post("/category", categoryRateLimiter, createCategory);
-router.get("/categories", getAllCategories);
-router.get("/category/:slug", getCategoryById);
+router.post("/", categoryRateLimiter, createCategory);
+router.get("/all", getAllCategories);
+router.get("/:slug", getCategoryById);
 
 export default router;

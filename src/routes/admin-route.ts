@@ -12,6 +12,6 @@ const accessRateLimiter = createRateLimiter("access", 10);
 
 router.post("/login", accessRateLimiter, accessDashboard);
 router.post("/logout", logoutAdmin);
-router.get("/admin", getAdmin);
+router.get("/me", getAdmin);
 
 export default router;

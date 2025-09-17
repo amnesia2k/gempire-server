@@ -10,10 +10,10 @@ import { createPromo } from "../controllers/promotion-controller";
 
 const router = Router();
 
-router.post("/code", createPromo);
-router.get("/code", allCodeDetails);
-router.get("/code/:id", getSinglePromo);
-router.get("/code/string/:code", getPromoCodeByCode);
-router.patch("/code/:id", editCodeDetails);
+router.post("/", createPromo);
+router.get("/all", allCodeDetails);
+router.get("/:id", getSinglePromo);
+router.get("/code/:code", getPromoCodeByCode);
+router.patch("/:id", editCodeDetails);
 
 export default router;
