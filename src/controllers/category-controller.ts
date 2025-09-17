@@ -118,38 +118,20 @@ export const getAllCategories = async (_req: Request, res: Response) => {
 
 export const getCategoryById = async (req: Request, res: Response) => {
   const { slug } = req.params;
-  const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+  const rawPage = parseInt(req.query.page as string) || 1;
   const limit = Math.min(parseInt(req.query.limit as string) || 12, 100);
-  const offset = (page - 1) * limit;
 
   if (!slug) return throwBadRequest("Category slug is required");
 
-  const cacheKey = `category:${slug}:page:${page}:limit:${limit}`;
-
   try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return; // ✅ only return inside the condition
-    }
-
     let categoryData = null;
-    let productList = [];
     let total = 0;
 
     if (slug === "all") {
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
         .from(products);
-
       total = Number(count);
-      productList = await db
-        .select()
-        .from(products)
-        .orderBy(desc(products.createdAt))
-        .limit(limit)
-        .offset(offset);
-
       categoryData = { name: "All Products", slug: "all" };
     } else {
       const [cat] = await db
@@ -164,16 +146,28 @@ export const getCategoryById = async (req: Request, res: Response) => {
         .select({ count: sql<number>`count(*)` })
         .from(products)
         .where(eq(products.categoryId, cat._id));
-
       total = Number(count);
-      productList = await db
-        .select()
-        .from(products)
-        .where(eq(products.categoryId, cat._id))
-        .orderBy(desc(products.createdAt))
-        .limit(limit)
-        .offset(offset);
     }
+
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const safePage = Math.min(Math.max(1, rawPage), totalPages);
+    const offset = (safePage - 1) * limit;
+
+    let productList =
+      slug === "all"
+        ? await db
+            .select()
+            .from(products)
+            .orderBy(desc(products.createdAt))
+            .limit(limit)
+            .offset(offset)
+        : await db
+            .select()
+            .from(products)
+            .where(eq(products.categoryId, categoryData._id!))
+            .orderBy(desc(products.createdAt))
+            .limit(limit)
+            .offset(offset);
 
     const productIds = productList.map((p) => p._id);
     const allImages = productIds.length
@@ -189,8 +183,6 @@ export const getCategoryById = async (req: Request, res: Response) => {
       category: slug === "all" ? null : categoryData,
     }));
 
-    const totalPages = Math.ceil(total / limit);
-
     const responsePayload = {
       message: "Category products fetched successfully",
       success: true,
@@ -198,13 +190,12 @@ export const getCategoryById = async (req: Request, res: Response) => {
         category: categoryData,
         products: productsWithImages,
         total,
-        page,
+        page: safePage,
         limit,
         totalPages,
       },
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error) {
     if (error instanceof AppError) {
