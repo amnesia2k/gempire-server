@@ -10,6 +10,7 @@ import { productImages } from "../db/product-images-schema";
 import redisClient from "../utils/redis";
 import { logger } from "../utils/logger";
 import { promoCodes } from "../db/promo-schema";
+import { confirmationQueue, invoiceQueue } from "../services/invoice-queue";
 
 // ------------------------
 // CREATE ORDER
@@ -155,6 +156,8 @@ export const createOrder = async (req: Request, res: Response) => {
     });
 
     await redisClient.del("orders:all"); // Invalidate all orders cache
+
+    await invoiceQueue.add("sendInvoice", { orderId: internalId });
 
     res.status(201).json({
       success: true,
@@ -304,6 +307,12 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       .set({ status })
       .where(eq(orders._id, id))
       .returning();
+
+    if (updatedOrder.status === "delivered") {
+      await confirmationQueue.add("sendConfirmation", {
+        orderId: updatedOrder._id,
+      });
+    }
 
     // 🧹 Invalidate related caches
     await redisClient.del("orders:all");
