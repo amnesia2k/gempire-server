@@ -2,15 +2,13 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import compression from "compression";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath, pathToFileURL } from "url";
-import { db } from "./db";
-import { sql } from "drizzle-orm";
 import { logger } from "./utils/logger";
 import job from "./utils/cron";
 import { env } from "./utils/env";
 import routes from "./routes/index-route";
+
+import "./services/invoice-worker";
+import "./services/confirmation-worker";
 
 const app = express();
 const PORT = env.PORT;
@@ -18,9 +16,6 @@ const PORT = env.PORT;
 if (env.NODE_ENV === "production") {
   job.start();
 }
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
 
 app.set("trust proxy", 1);
 
@@ -62,6 +57,9 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);
 });
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 // async function loadRoutesFlat() {
 //   const routesDir = path.join(__dirname, "routes");
