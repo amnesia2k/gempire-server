@@ -133,7 +133,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     if (!admin) throwNotFound("Admin not found");
 
     // 3. Cache the result for 1 hour (3600 seconds)
-    await redisClient.set(cacheKey, JSON.stringify(admin), "EX", 3600);
+    await redisClient.set(cacheKey, JSON.stringify(admin), { EX: 3600 });
 
     res.status(200).json({
       message: "Fetched admin data successfully",

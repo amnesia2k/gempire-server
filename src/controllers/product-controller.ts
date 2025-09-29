@@ -143,7 +143,9 @@ export const getAllProducts = async (_req: Request, res: Response) => {
       data: productsWithData,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
+    });
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
     logger.error("Unhandled error:", error);
@@ -190,7 +192,9 @@ export const getProductBySlug = async (req: Request, res: Response) => {
       data: { ...product, images, category: categoryData || null },
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
+    });
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
     logger.error("Unhandled error:", error);

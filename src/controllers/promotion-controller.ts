@@ -110,7 +110,7 @@ export const allCodeDetails = async (_req: Request, res: Response) => {
     }
 
     // Cache result for 10 mins
-    await redisClient.set("promo:all", JSON.stringify(promos), "EX", 600);
+    await redisClient.set("promo:all", JSON.stringify(promos), { EX: 600 });
 
     res.status(200).json({
       success: true,
@@ -238,7 +238,7 @@ export const getSinglePromo = async (req: Request, res: Response) => {
     const promo = result[0];
 
     // 3️⃣ Cache it
-    await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600);
+    await redisClient.set(cacheKey, JSON.stringify(promo), { EX: 600 });
 
     res.status(200).json({
       success: true,
@@ -281,7 +281,7 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
     if (!promo) throwForbidden("Invalid Promo code.");
     if (!promo.isActive) throwBadRequest("Promo code is not active.");
 
-    await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600); // Cache for 10 minutes
+    await redisClient.set(cacheKey, JSON.stringify(promo), { EX: 600 }); // Cache for 10 minutes
 
     res.status(200).json({
       success: true,

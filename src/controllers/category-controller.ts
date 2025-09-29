@@ -100,7 +100,9 @@ export const getAllCategories = async (_req: Request, res: Response) => {
       data: categoriesList,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
+    });
 
     res.status(200).json(responsePayload);
   } catch (error) {
