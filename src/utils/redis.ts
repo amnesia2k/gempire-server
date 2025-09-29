@@ -32,7 +32,7 @@ const client = createClient({
       env.REDIS_HOST ??
       "redis-15282.crce204.eu-west-2-3.ec2.redns.redis-cloud.com",
     port: Number(env.REDIS_PORT ?? 15282),
-    // tls: true, // enable TLS since Redis Cloud expects TLS on its TLS port
+    tls: true, // enable TLS since Redis Cloud expects TLS on its TLS port
   },
 });
 
@@ -55,7 +55,7 @@ export const redisOptions = {
       env.REDIS_HOST ??
       "redis-15282.crce204.eu-west-2-3.ec2.redns.redis-cloud.com",
     port: Number(env.REDIS_PORT ?? 15282),
-    // tls: true,
+    tls: true,
   },
 };
 
