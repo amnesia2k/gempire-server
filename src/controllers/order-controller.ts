@@ -195,9 +195,11 @@ export const getOrders = async (_req: Request, res: Response) => {
       data: allOrders,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+    //   EX: 600,
+    // });
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error) {
     handleControllerError(error, res, "Failed to fetch orders");
@@ -272,9 +274,11 @@ export const getOrderById = async (req: Request, res: Response) => {
       },
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-      EX: 600,
-    });
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+    //   EX: 600,
+    // });
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error) {
     handleControllerError(error, res, "Failed to fetch order by ID");
