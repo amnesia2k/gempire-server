@@ -1,3 +1,25 @@
+// import { createClient } from "redis";
+// import { logger } from "./logger";
+
+// const url =
+//   process.env.REDIS_URL ??
+//   `rediss://default:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`;
+// const client = createClient({ url });
+
+// client.on("connect", () => logger.info("🔌 Redis connected"));
+// client.on("error", (err) =>
+//   logger.error("⚠️ Redis connection error:", err.message)
+// );
+// client.on("end", () => logger.warn("⚠️ Redis connection closed"));
+// client.on("reconnecting", () => logger.info("🔌 Redis reconnecting..."));
+// client.on("ready", () => logger.info("🔌 Redis client ready"));
+
+// await client.connect();
+// export default client;
+
+// // BullMQ options can reuse the same URL:
+// export const redisOptions = { url };
+
 import { createClient } from "redis";
 import { logger } from "./logger";
 import { env } from "./env";
@@ -6,9 +28,11 @@ const client = createClient({
   username: "default",
   password: env.REDIS_PASSWORD,
   socket: {
-    host: env.REDIS_HOST || "127.0.0.1",
-    port: Number(env.REDIS_PORT ?? 6379),
-    tls: true, // Redis Cloud requires TLS
+    host:
+      env.REDIS_HOST ??
+      "redis-15282.crce204.eu-west-2-3.ec2.redns.redis-cloud.com",
+    port: Number(env.REDIS_PORT ?? 15282),
+    // tls: true, // enable TLS since Redis Cloud expects TLS on its TLS port
   },
 });
 
@@ -21,17 +45,17 @@ client.on("reconnecting", () => logger.info("🔌 Redis reconnecting..."));
 client.on("ready", () => logger.info("🔌 Redis client ready"));
 
 await client.connect();
-
 export default client;
 
-// For BullMQ (needs plain connection opts)
 export const redisOptions = {
   username: "default",
   password: env.REDIS_PASSWORD,
   socket: {
-    host: env.REDIS_HOST || "127.0.0.1",
-    port: Number(env.REDIS_PORT ?? 6379),
-    tls: true,
+    host:
+      env.REDIS_HOST ??
+      "redis-15282.crce204.eu-west-2-3.ec2.redns.redis-cloud.com",
+    port: Number(env.REDIS_PORT ?? 15282),
+    // tls: true,
   },
 };
 
