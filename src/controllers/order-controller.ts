@@ -7,10 +7,11 @@ import { eq, inArray, desc } from "drizzle-orm";
 import { AppError, throwBadRequest, throwNotFound } from "../utils/error";
 import { generateHybridId } from "../utils/id";
 import { productImages } from "../db/product-images-schema";
-import redisClient from "../utils/redis";
+// import redisClient from "../utils/redis";
 import { logger } from "../utils/logger";
 import { promoCodes } from "../db/promo-schema";
-import { confirmationQueue, invoiceQueue } from "../services/invoice-queue";
+// import { confirmationQueue, invoiceQueue } from "../services/invoice-queue";
+import { eventBus } from "../utils/event-bus";
 
 // ------------------------
 // CREATE ORDER
@@ -155,9 +156,10 @@ export const createOrder = async (req: Request, res: Response) => {
       await tx.insert(orderItems).values(orderItemsData);
     });
 
-    await redisClient.del("orders:all"); // Invalidate all orders cache
+    // await redisClient.del("orders:all"); // Invalidate all orders cache
 
-    await invoiceQueue.add("sendInvoice", { orderId: internalId });
+    // await invoiceQueue.add("sendInvoice", { orderId: internalId });
+    eventBus.emit("invoiceEmail", { orderId: internalId });
 
     res.status(201).json({
       success: true,
@@ -176,11 +178,11 @@ export const getOrders = async (_req: Request, res: Response) => {
   const cacheKey = "orders:all";
 
   try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
-    }
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   res.status(200).json(JSON.parse(cached));
+    //   return;
+    // }
 
     const allOrders = await db
       .select()
@@ -199,7 +201,7 @@ export const getOrders = async (_req: Request, res: Response) => {
     //   EX: 600,
     // });
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error) {
     handleControllerError(error, res, "Failed to fetch orders");
@@ -216,11 +218,11 @@ export const getOrderById = async (req: Request, res: Response) => {
   const cacheKey = `order:${id}`;
 
   try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
-    }
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   res.status(200).json(JSON.parse(cached));
+    //   return;
+    // }
 
     // Include promoCode relation in the query
     const [order] = await db
@@ -278,7 +280,7 @@ export const getOrderById = async (req: Request, res: Response) => {
     //   EX: 600,
     // });
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error) {
     handleControllerError(error, res, "Failed to fetch order by ID");
@@ -317,14 +319,12 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
       .returning();
 
     if (updatedOrder.status === "delivered") {
-      await confirmationQueue.add("sendConfirmation", {
-        orderId: updatedOrder._id,
-      });
+      eventBus.emit("confirmationEmail", { orderId: updatedOrder._id });
     }
 
     // 🧹 Invalidate related caches
-    await redisClient.del("orders:all");
-    await redisClient.del(`order:${id}`);
+    // await redisClient.del("orders:all");
+    // await redisClient.del(`order:${id}`);
 
     res.status(200).json({
       success: true,

@@ -7,8 +7,8 @@ import job from "./utils/cron";
 import { env } from "./utils/env";
 import routes from "./routes/index-route";
 
-import "./services/invoice-worker";
-import "./services/confirmation-worker";
+// import "./services/invoice-worker";
+// import "./services/confirmation-worker";
 
 const app = express();
 const PORT = env.PORT;

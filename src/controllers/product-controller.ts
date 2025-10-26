@@ -17,7 +17,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { safeDeleteFromCloudinary } from "../utils/safe-delete";
 import { safeInvalidateCategory } from "./category-controller";
 import { logger } from "../utils/logger";
-import redisClient from "../utils/redis";
+// import redisClient from "../utils/redis";
 
 // 📦 Create Product
 export const createProduct = async (req: Request, res: Response) => {
@@ -49,8 +49,8 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     // 🧹 Cache invalidation
-    await redisClient.del("products:all");
-    await redisClient.del("categories:all");
+    // await redisClient.del("products:all");
+    // await redisClient.del("categories:all");
     if (result.product.categoryId) {
       await safeInvalidateCategory(`category:${result.product.categoryId}`);
     }
@@ -83,12 +83,12 @@ export const getAllProducts = async (_req: Request, res: Response) => {
   const cacheKey = "products:all";
 
   try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      logger.info("Cache hit for products");
-      res.status(200).json(JSON.parse(cached));
-      return;
-    }
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   logger.info("Cache hit for products");
+    //   res.status(200).json(JSON.parse(cached));
+    //   return;
+    // }
 
     const allProducts = await db
       .select()
@@ -147,7 +147,7 @@ export const getAllProducts = async (_req: Request, res: Response) => {
     //   EX: 600,
     // });
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
     logger.error("Unhandled error:", error);
@@ -163,11 +163,11 @@ export const getProductBySlug = async (req: Request, res: Response) => {
   const cacheKey = `product:${slug}`;
 
   try {
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
-    }
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   res.status(200).json(JSON.parse(cached));
+    //   return;
+    // }
 
     const [product] = await db
       .select()
@@ -198,7 +198,7 @@ export const getProductBySlug = async (req: Request, res: Response) => {
     //   EX: 600,
     // });
 
-    await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
     res.status(200).json(responsePayload);
   } catch (error: unknown) {
     logger.error("Unhandled error:", error);
@@ -309,12 +309,12 @@ export const editProduct = async (req: Request, res: Response) => {
       .returning();
 
     // Invalidate caches directly
-    await redisClient.del("products:all");
-    await redisClient.del("categories:all");
-    await redisClient.del(`product:${slug}`);
-    if (newSlug !== slug) {
-      await redisClient.del(`product:${newSlug}`);
-    }
+    // await redisClient.del("products:all");
+    // await redisClient.del("categories:all");
+    // await redisClient.del(`product:${slug}`);
+    // if (newSlug !== slug) {
+    //   await redisClient.del(`product:${newSlug}`);
+    // }
 
     // Invalidate old and new categories if changed
     if (categoryId && categoryId !== existingProduct.categoryId) {
@@ -366,10 +366,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
     await db.delete(productImages).where(eq(productImages.productId, id));
     await db.delete(products).where(eq(products._id, id));
 
-    await redisClient.del("products:all");
-    await redisClient.del("categories:all");
-    await redisClient.del(`product:${product.slug}`);
-    await redisClient.del(`category:${product.categoryId}`);
+    // await redisClient.del("products:all");
+    // await redisClient.del("categories:all");
+    // await redisClient.del(`product:${product.slug}`);
+    // await redisClient.del(`category:${product.categoryId}`);
 
     res.status(200).json({
       success: true,

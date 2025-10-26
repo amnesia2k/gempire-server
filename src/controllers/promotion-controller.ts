@@ -10,7 +10,7 @@ import {
   throwNotFound,
   throwServerError,
 } from "../utils/error";
-import redisClient from "../utils/redis";
+// import redisClient from "../utils/redis";
 
 export const createPromo = async (req: Request, res: Response) => {
   try {
@@ -72,7 +72,7 @@ export const createPromo = async (req: Request, res: Response) => {
     const result = await db.insert(promoCodes).values(newPromo).returning();
 
     // Invalidate cached promos
-    await redisClient.del("promo:all");
+    // await redisClient.del("promo:all");
 
     res.status(201).json({
       success: true,
@@ -90,17 +90,17 @@ export const createPromo = async (req: Request, res: Response) => {
 export const allCodeDetails = async (_req: Request, res: Response) => {
   try {
     // Try to get from Redis first
-    const cached = await redisClient.get("promo:all");
+    // const cached = await redisClient.get("promo:all");
 
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        message: "Promo codes retrieved from cache.",
-        data: JSON.parse(cached),
-      });
+    // if (cached) {
+    //   res.status(200).json({
+    //     success: true,
+    //     message: "Promo codes retrieved from cache.",
+    //     data: JSON.parse(cached),
+    //   });
 
-      return;
-    }
+    //   return;
+    // }
 
     // Cache miss, fetch from DB
     const promos = await db.select().from(promoCodes);
@@ -112,7 +112,7 @@ export const allCodeDetails = async (_req: Request, res: Response) => {
     // Cache result for 10 mins
     // await redisClient.set("promo:all", JSON.stringify(promos), { EX: 600 });
 
-    await redisClient.set("promo:all", JSON.stringify(promos), "EX", 600);
+    // await redisClient.set("promo:all", JSON.stringify(promos), "EX", 600);
 
     res.status(200).json({
       success: true,
@@ -193,7 +193,7 @@ export const editCodeDetails = async (req: Request, res: Response) => {
     if (result.length === 0) throwNotFound("Promo code not found.");
 
     // Invalidate cache after update
-    await redisClient.del("promo:all");
+    // await redisClient.del("promo:all");
 
     res.status(200).json({
       success: true,
@@ -217,16 +217,16 @@ export const getSinglePromo = async (req: Request, res: Response) => {
     const cacheKey = `promo:${id}`;
 
     // 1️⃣ Try to get from Redis first
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        message: "Promo code retrieved from cache.",
-        promoCode: JSON.parse(cached),
-      });
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   res.status(200).json({
+    //     success: true,
+    //     message: "Promo code retrieved from cache.",
+    //     promoCode: JSON.parse(cached),
+    //   });
 
-      return;
-    }
+    //   return;
+    // }
 
     // 2️⃣ Not in cache → fetch from DB
     const result = await db
@@ -242,7 +242,7 @@ export const getSinglePromo = async (req: Request, res: Response) => {
     // 3️⃣ Cache it
     // await redisClient.set(cacheKey, JSON.stringify(promo), { EX: 600 });
 
-    await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600);
 
     res.status(200).json({
       success: true,
@@ -266,15 +266,15 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
 
     const cacheKey = `promo:code:${code.toUpperCase()}`;
 
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      res.status(200).json({
-        success: true,
-        message: "Promo code retrieved from cache by code.",
-        promoCode: JSON.parse(cached),
-      });
-      return;
-    }
+    // const cached = await redisClient.get(cacheKey);
+    // if (cached) {
+    //   res.status(200).json({
+    //     success: true,
+    //     message: "Promo code retrieved from cache by code.",
+    //     promoCode: JSON.parse(cached),
+    //   });
+    //   return;
+    // }
 
     const [promo] = await db
       .select()
@@ -287,7 +287,7 @@ export const getPromoCodeByCode = async (req: Request, res: Response) => {
 
     // await redisClient.set(cacheKey, JSON.stringify(promo), { EX: 600 }); // Cache for 10 minutes
 
-    await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600);
+    // await redisClient.set(cacheKey, JSON.stringify(promo), "EX", 600);
 
     res.status(200).json({
       success: true,
