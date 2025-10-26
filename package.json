@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "dotenv -e .env -- nodemon --watch src --ext ts --exec tsx src/server.ts",
-    "start": "tsx src/server.ts",
+    "start": "bun run dist/server.js",
     "worker": "nodemon --watch src --ext ts --exec tsx src/worker.ts",
-    "build": "tsc",
+    "build": "bun build --target=node --outdir=dist src/server.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
