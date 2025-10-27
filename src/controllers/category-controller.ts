@@ -10,7 +10,7 @@ import {
   throwNotFound,
   throwServerError,
 } from "../utils/error";
-// import redisClient from "../utils/redis";
+import redis from "../utils/redis";
 import { products } from "../db/product-schema";
 import { productImages } from "../db/product-images-schema";
 import { logger } from "../utils/logger";
@@ -26,7 +26,7 @@ export const safeInvalidateCategory = async (
     .where(eq(category._id, categoryId));
 
   if (cat?.slug) {
-    // await redisClient.del(`category:${cat.slug}`);
+    await redis.del(`category:${cat.slug}`);
   }
 };
 
@@ -58,7 +58,7 @@ export const createCategory = async (req: Request, res: Response) => {
       .values(newCategory)
       .returning();
 
-    // await redisClient.del("categories:all"); // ❌ categories:all only
+    await redis.del("categories:all"); // ❌ categories:all only
 
     res.status(201).json({
       success: true,
@@ -84,12 +84,12 @@ export const getAllCategories = async (_req: Request, res: Response) => {
   const cacheKey = "categories:all";
 
   try {
-    // const cached = await redisClient.get(cacheKey);
-    // if (cached) {
-    //   logger.info("📦 Cache hit for categories:all");
-    //   res.status(200).json(JSON.parse(cached));
-    //   return;
-    // }
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      logger.info("📦 Cache hit for categories:all");
+      res.status(200).json(JSON.parse(cached));
+      return;
+    }
 
     const categoriesList = await db.select().from(category);
     if (!categoriesList.length) throwNotFound("No categories found");
@@ -100,11 +100,9 @@ export const getAllCategories = async (_req: Request, res: Response) => {
       data: categoriesList,
     };
 
-    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
-    //   EX: 600,
-    // });
-
-    // await redisClient.set(cacheKey, JSON.stringify(responsePayload), "EX", 600);
+    await redis.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 600,
+    });
 
     res.status(200).json(responsePayload);
   } catch (error) {

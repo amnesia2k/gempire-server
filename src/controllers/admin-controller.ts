@@ -11,7 +11,7 @@ import {
   throwServerError,
   throwUnauthorized,
 } from "../utils/error";
-// import redisClient from "../utils/redis";
+import redis from "../utils/redis";
 import { logger } from "../utils/logger";
 import { env } from "../utils/env";
 
@@ -36,7 +36,7 @@ export const accessDashboard = async (req: Request, res: Response) => {
     };
 
     // ❌ Invalidate all admin cache after successful login
-    // await redisClient.del(`admin:${decoded._id}`);
+    await redis.del(`admin:${decoded._id}`);
 
     res.setHeader("Cache-Control", "no-store");
 
@@ -75,7 +75,7 @@ export const logoutAdmin = async (_req: Request, res: Response) => {
       };
 
       // 🔥 Clean single admin cache or all (your call)
-      // await redisClient.del(`admin:${decoded._id}`);
+      await redis.del(`admin:${decoded._id}`);
     }
 
     res.setHeader("Cache-Control", "no-store");
@@ -112,17 +112,17 @@ export const getAdmin = async (req: Request, res: Response) => {
     const cacheKey = `admin:${adminId}`;
 
     // 1. Try cache
-    // const cachedAdmin = await redisClient.get(cacheKey);
-    // if (cachedAdmin) {
-    //   logger.info("Cache hit for admin:", adminId);
-    //   res.status(200).json({
-    //     message: "Fetched admin data successfully (from cache)",
-    //     data: JSON.parse(cachedAdmin),
-    //     success: true,
-    //   });
+    const cachedAdmin = await redis.get(cacheKey);
+    if (cachedAdmin) {
+      logger.info("Cache hit for admin:", adminId);
+      res.status(200).json({
+        message: "Fetched admin data successfully (from cache)",
+        data: JSON.parse(cachedAdmin),
+        success: true,
+      });
 
-    //   return;
-    // }
+      return;
+    }
 
     // 2. Cache miss - fetch from DB
     const [admin] = await db
@@ -133,9 +133,7 @@ export const getAdmin = async (req: Request, res: Response) => {
     if (!admin) throwNotFound("Admin not found");
 
     // 3. Cache the result for 1 hour (3600 seconds)
-    // await redisClient.set(cacheKey, JSON.stringify(admin), { EX: 3600 });
-
-    // await redisClient.set(cacheKey, JSON.stringify(admin), "EX", 3600);
+    await redis.set(cacheKey, JSON.stringify(admin), { EX: 3600 });
 
     res.status(200).json({
       message: "Fetched admin data successfully",

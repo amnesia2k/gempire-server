@@ -6,6 +6,7 @@ import { logger } from "./utils/logger";
 import job from "./utils/cron";
 import { env } from "./utils/env";
 import routes from "./routes/index-route";
+import { connectRedis } from "./utils/redis";
 
 // import "./services/invoice-worker";
 // import "./services/confirmation-worker";
@@ -35,6 +36,10 @@ app.use(
   })
 );
 
+(async () => {
+  await connectRedis(); // Connect once at startup
+})();
+
 app.use("/api/v1", routes);
 
 // error middleware
@@ -55,58 +60,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  logger.info(`Server is running on port ${PORT}`);
+  logger.info(`Server is running on port http://localhost:${PORT}`);
 });
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// async function loadRoutesFlat() {
-//   const routesDir = path.join(__dirname, "routes");
-
-//   const routeFiles = fs
-//     .readdirSync(routesDir)
-//     .filter((f) => f.endsWith(".ts") || f.endsWith(".js"));
-
-//   for (const file of routeFiles) {
-//     try {
-//       const filePath = path.join(routesDir, file);
-//       const mod = await import(pathToFileURL(filePath).href);
-//       const router = mod.default;
-
-//       if (typeof router !== "function") {
-//         logger.warn(`⚠️ Skipped ${file} (no default export router)`);
-//         continue;
-//       }
-
-//       app.use("/api/v1", router);
-//       logger.info(`✅ Mounted routes from ${file} at /api/v1`);
-//     } catch (err) {
-//       logger.error(`❌ Error loading ${file}:`, err);
-//     }
-//   }
-
-//   app.use((req, res) => {
-//     res.status(404).json({
-//       message: "Not Found",
-//       url: req.originalUrl,
-//     });
-//   });
-
-//   app.use((err: Error, _req: Request, res: Response) => {
-//     logger.error("💥 Internal Server Error:", err.stack);
-//     res.status(500).json({ message: "Something broke!", status: 500 });
-//   });
-// }
-
-// loadRoutesFlat().then(() => {
-//   app.listen(PORT, () => {
-//     logger.info(`🚀 Server ready at http://localhost:${PORT}`);
-//   });
-
-//   setInterval(() => {
-//     db.execute(sql`SELECT 1`)
-//       .then(() => logger.info("💓 Keep-alive ping sent"))
-//       .catch((err) => logger.error("💥 Keep-alive failed:", err.message));
-//   }, 240_000);
-// });
