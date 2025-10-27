@@ -17,6 +17,9 @@ router.get("/", async (req: Request, res: Response) => {
     const redisValue = await client.get("healthcheck");
     const redisStatus = redisValue === "ok" ? "connected" : "error";
 
+    logger.info("Redis Value:", redisValue);
+    logger.info("Redis Status:", redisStatus);
+
     const response = {
       status: "success",
       message: "🧠 Gempire backend is alive!",
