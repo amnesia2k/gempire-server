@@ -1,13 +1,9 @@
-import express from "express";
-import { createRateLimiter } from "../utils/rate-limiter";
-import {
-  getMetrics,
-  getSalesByPeriod,
-} from "../controllers/metrics-controller";
+import express from 'express'
+import { getMetrics, getSalesByPeriod } from '../controllers/metrics-controller'
 
-const router = express.Router();
+const router = express.Router()
 
-router.get("/", getMetrics);
-router.get("/sales", getSalesByPeriod);
+router.get('/', getMetrics)
+router.get('/sales', getSalesByPeriod)
 
-export default router;
+export default router

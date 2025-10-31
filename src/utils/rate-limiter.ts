@@ -1,33 +1,33 @@
-import rateLimit from "express-rate-limit";
-import { Request, Response } from "express";
-import { logger } from "./logger";
+import rateLimit from 'express-rate-limit'
+import { NextFunction, Request, Response } from 'express'
+import { logger } from './logger'
 
 export const createRateLimiter = (keyPrefix: string, maxTries: number) => {
   try {
-    logger.info("✅ Rate limiter initialized (in-memory)");
+    logger.info('✅ Rate limiter initialized (in-memory)')
 
     return rateLimit({
       windowMs: 5 * 60 * 1000, // 5 minutes
       max: maxTries,
       keyGenerator: (req: Request) => {
-        const ip = req.ip;
-        const path = req.originalUrl.split("?")[0];
-        return `${keyPrefix}:${ip}:${path}`;
+        const ip = req.ip
+        const path = req.originalUrl.split('?')[0]
+        return `${keyPrefix}:${ip}:${path}`
       },
       standardHeaders: true,
       legacyHeaders: false,
       handler: (req: Request, res: Response) => {
         res.status(429).json({
           message: `Too many requests – slow down and try again in 5 minutes`,
-        });
+        })
       },
-    });
+    })
   } catch (err) {
-    logger.warn("⚠️ Rate limiter failed. Proceeding without limit.");
-    logger.error(err);
-    return (_req: Request, _res: Response, next: Function) => next();
+    logger.warn('⚠️ Rate limiter failed. Proceeding without limit.')
+    logger.error(err)
+    return (_req: Request, _res: Response, next: NextFunction) => next()
   }
-};
+}
 
 // import { rateLimit } from "express-rate-limit";
 // import { RedisStore, RedisReply } from "rate-limit-redis";

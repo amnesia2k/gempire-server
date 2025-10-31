@@ -15,12 +15,16 @@
     "migrate:prod": "dotenv -e .env.production -- drizzle-kit migrate",
     "backfill": "tsx src/scripts/backfill-slug.ts",
     "db:studio": "drizzle-kit studio",
-    "db:drop": "drizzle-kit drop"
+    "db:drop": "drizzle-kit drop",
+    "lint": "eslint --ext .ts,.js src --cache",
+    "lint:fix": "eslint --ext .ts,.js src --fix",
+    "format": "prettier . --write .",
+    "prepare": "npx husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.6.5",
+  "packageManager": "bun@1.3.1",
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "@types/body-parser": "^1.4.8",
@@ -62,11 +66,29 @@
     "zod": "^3.25.45"
   },
   "devDependencies": {
+    "@eslint/js": "^9.38.0",
     "@types/nodemailer": "^7.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.1",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "jiti": "^2.6.1",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.46.2"
+  },
+  "lint-staged": {
+    "*.{js,ts}": [
+      "bun format",
+      "bun lint:fix"
+    ]
   }
 }
