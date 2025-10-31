@@ -1,5 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
+import dotenv from 'dotenv'
+dotenv.config()
 
 export const env = {
   API_URL: process.env.API_URL!,
@@ -23,4 +23,4 @@ export const env = {
   // REDIS_URL: process.env.REDIS_URL!,
   REDIS_USERNAME: process.env.REDIS_USERNAME!,
   REDIS_PASSWORD: process.env.REDIS_PASSWORD!,
-};
+}

@@ -1,6 +1,6 @@
-import { createClient } from "redis";
-import { logger } from "./logger";
-import { env } from "./env";
+import { createClient } from 'redis'
+import { logger } from './logger'
+import { env } from './env'
 
 const client = createClient({
   username: env.REDIS_USERNAME,
@@ -9,18 +9,18 @@ const client = createClient({
     host: env.REDIS_HOST,
     port: Number(env.REDIS_PORT),
   },
-});
+})
 
-client.on("error", (err) => logger.error("❌ Redis Client Error:", err));
+client.on('error', (err) => logger.error('❌ Redis Client Error:', err))
 
 export const connectRedis = async () => {
   if (!client.isOpen) {
-    await client.connect();
-    logger.info("✅ Connected to Redis");
+    await client.connect()
+    logger.info('✅ Connected to Redis')
   }
-};
+}
 
-export default client;
+export default client
 
 // import RedisClient from "ioredis";
 // import { logger } from "./logger";

@@ -108,12 +108,8 @@
           "name": "products_categoryId_category__id_fk",
           "tableFrom": "products",
           "tableTo": "category",
-          "columnsFrom": [
-            "categoryId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["categoryId"],
+          "columnsTo": ["_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -166,12 +162,8 @@
           "name": "product_images_productId_products__id_fk",
           "tableFrom": "product_images",
           "tableTo": "products",
-          "columnsFrom": [
-            "productId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["productId"],
+          "columnsTo": ["_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -219,9 +211,7 @@
         "category_slug_unique": {
           "name": "category_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},

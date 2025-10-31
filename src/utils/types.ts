@@ -1,1 +1,1 @@
-export type OrderStatus = "ordered" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus = 'ordered' | 'shipped' | 'delivered' | 'cancelled'

@@ -1,34 +1,29 @@
-import { Request, Response } from "express";
-import { createProductWithImages } from "../services/createProductWithImages";
-import { db } from "../db";
-import { products } from "../db/product-schema";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
-import { productImages } from "../db/product-images-schema";
-import { category } from "../db/category-schema";
-import {
-  AppError,
-  throwBadRequest,
-  throwNotFound,
-  throwServerError,
-} from "../utils/error";
-import { safeUploadToCloudinary } from "../utils/safe-upload";
-import { slugify } from "../utils/slugify";
-import { createId } from "@paralleldrive/cuid2";
-import { safeDeleteFromCloudinary } from "../utils/safe-delete";
-import { safeInvalidateCategory } from "./category-controller";
-import { logger } from "../utils/logger";
-import redis from "../utils/redis";
+import { Request, Response } from 'express'
+import { createProductWithImages } from '../services/createProductWithImages'
+import { db } from '../db'
+import { products } from '../db/product-schema'
+import { and, desc, eq, inArray, ne } from 'drizzle-orm'
+import { productImages } from '../db/product-images-schema'
+import { category } from '../db/category-schema'
+import { AppError, throwBadRequest, throwNotFound, throwServerError } from '../utils/error'
+import { safeUploadToCloudinary } from '../utils/safe-upload'
+import { slugify } from '../utils/slugify'
+import { createId } from '@paralleldrive/cuid2'
+import { safeDeleteFromCloudinary } from '../utils/safe-delete'
+import { safeInvalidateCategory } from './category-controller'
+import { logger } from '../utils/logger'
+import redis from '../utils/redis'
 
 // 📦 Create Product
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, description, price, unit, categoryId } = req.body;
-    const files = req.files as Express.Multer.File[];
+    const { name, description, price, unit, categoryId } = req.body
+    const files = req.files as Express.Multer.File[]
 
     if (!name || !description || !price || !unit || !categoryId)
-      throwBadRequest("All fields are required.");
+      throwBadRequest('All fields are required.')
 
-    if (!files?.length) throwBadRequest("At least one image is required.");
+    if (!files?.length) throwBadRequest('At least one image is required.')
 
     const result = await createProductWithImages({
       name,
@@ -37,83 +32,80 @@ export const createProduct = async (req: Request, res: Response) => {
       unit: parseInt(unit),
       categoryId,
       files,
-    });
+    })
 
-    let cat = null;
+    let cat = null
     if (result.product.categoryId) {
-      [cat] = await db
+      ;[cat] = await db
         .select({ name: category.name, slug: category.slug })
         .from(category)
         .where(eq(category._id, result.product.categoryId))
-        .limit(1);
+        .limit(1)
     }
 
     // 🧹 Cache invalidation
-    await redis.del("products:all");
-    await redis.del("categories:all");
+    await redis.del('products:all')
+    await redis.del('categories:all')
     if (result.product.categoryId) {
-      await safeInvalidateCategory(`category:${result.product.categoryId}`);
+      await safeInvalidateCategory(`category:${result.product.categoryId}`)
     }
 
     res.status(201).json({
-      message: "Product created successfully",
+      message: 'Product created successfully',
       success: true,
       data: {
         ...result,
         category: cat || null,
         slug: result.product.slug,
       },
-    });
+    })
   } catch (error: unknown) {
     if (error instanceof AppError) {
       res.status(error.statusCode).json({
         message: error.message,
         success: false,
-      });
+      })
     } else {
       // logger.error("Unhandled error:", error);
-      logger.error("Unhandled error:", error);
-      throwServerError("Something went wrong.");
+      logger.error('Unhandled error:', error)
+      throwServerError('Something went wrong.')
     }
   }
-};
+}
 
 // 🛒 Get All Products
 export const getAllProducts = async (_req: Request, res: Response) => {
-  const cacheKey = "products:all";
+  const cacheKey = 'products:all'
 
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = await redis.get(cacheKey)
     if (cached) {
-      logger.info("Cache hit for products");
-      res.status(200).json(JSON.parse(cached));
-      return;
+      logger.info('Cache hit for products')
+      res.status(200).json(JSON.parse(cached))
+      return
     }
 
-    const allProducts = await db
-      .select()
-      .from(products)
-      .orderBy(desc(products.createdAt));
+    const allProducts = await db.select().from(products).orderBy(desc(products.createdAt))
 
     if (allProducts.length === 0) {
       res.status(200).json({
-        message: "No products found",
+        message: 'No products found',
         success: true,
         data: [],
-      });
+      })
 
-      return;
+      return
     }
 
-    const productIds = allProducts.map((p) => p._id);
+    const productIds = allProducts.map((p) => p._id)
     const allImages = await db
       .select()
       .from(productImages)
-      .where(inArray(productImages.productId, productIds));
+      .where(inArray(productImages.productId, productIds))
 
     const categoryIds = [
       ...new Set(allProducts.map((p) => p.categoryId).filter(Boolean)),
-    ] as string[];
+    ] as string[]
     const allCategories = categoryIds.length
       ? await db
           .select({
@@ -123,124 +115,112 @@ export const getAllProducts = async (_req: Request, res: Response) => {
           })
           .from(category)
           .where(inArray(category._id, categoryIds))
-      : [];
+      : []
 
-    const categoryMap = Object.fromEntries(
-      allCategories.map((cat) => [cat._id, cat])
-    );
+    const categoryMap = Object.fromEntries(allCategories.map((cat) => [cat._id, cat]))
 
     const productsWithData = allProducts.map((product) => ({
       ...product,
       images: allImages.filter((img) => img.productId === product._id),
-      category: product.categoryId
-        ? categoryMap[product.categoryId] || null
-        : null,
-    }));
+      category: product.categoryId ? categoryMap[product.categoryId] || null : null,
+    }))
 
     const responsePayload = {
-      message: "Products fetched successfully",
+      message: 'Products fetched successfully',
       success: true,
       data: productsWithData,
-    };
+    }
 
     await redis.set(cacheKey, JSON.stringify(responsePayload), {
       EX: 600,
-    });
+    })
 
-    res.status(200).json(responsePayload);
+    res.status(200).json(responsePayload)
   } catch (error: unknown) {
-    logger.error("Unhandled error:", error);
-    throwServerError("Something went wrong");
+    logger.error('Unhandled error:', error)
+    throwServerError('Something went wrong')
   }
-};
+}
 
 // 🔍 Get Product by Slug
 export const getProductBySlug = async (req: Request, res: Response) => {
-  const { slug } = req.params;
-  if (!slug) return throwBadRequest("Slug is required");
+  const { slug } = req.params
+  if (!slug) return throwBadRequest('Slug is required')
 
-  const cacheKey = `product:${slug}`;
+  const cacheKey = `product:${slug}`
 
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = await redis.get(cacheKey)
     if (cached) {
-      res.status(200).json(JSON.parse(cached));
-      return;
+      res.status(200).json(JSON.parse(cached))
+      return
     }
 
-    const [product] = await db
-      .select()
-      .from(products)
-      .where(eq(products.slug, slug));
-    if (!product) throwNotFound("Product not found");
+    const [product] = await db.select().from(products).where(eq(products.slug, slug))
+    if (!product) throwNotFound('Product not found')
 
     const images = await db
       .select()
       .from(productImages)
-      .where(eq(productImages.productId, product._id));
+      .where(eq(productImages.productId, product._id))
 
-    let categoryData = null;
+    let categoryData = null
     if (product.categoryId) {
-      [categoryData] = await db
+      ;[categoryData] = await db
         .select({ name: category.name, slug: category.slug })
         .from(category)
-        .where(eq(category._id, product.categoryId));
+        .where(eq(category._id, product.categoryId))
     }
 
     const responsePayload = {
       success: true,
-      message: "Product fetched",
+      message: 'Product fetched',
       data: { ...product, images, category: categoryData || null },
-    };
+    }
 
     await redis.set(cacheKey, JSON.stringify(responsePayload), {
       EX: 600,
-    });
+    })
 
-    res.status(200).json(responsePayload);
+    res.status(200).json(responsePayload)
   } catch (error: unknown) {
-    logger.error("Unhandled error:", error);
-    throwServerError("Something went wrong");
+    logger.error('Unhandled error:', error)
+    throwServerError('Something went wrong')
   }
-};
+}
 
 // ✏️ Edit Product
 export const editProduct = async (req: Request, res: Response) => {
   try {
-    const { slug } = req.params;
-    const { name, description, price, unit, categoryId } = req.body;
+    const { slug } = req.params
+    const { name, description, price, unit, categoryId } = req.body
 
-    const rawDeletedImageIds = req.body.deletedImageIds;
+    const rawDeletedImageIds = req.body.deletedImageIds
     const deletedImageIds = Array.isArray(rawDeletedImageIds)
       ? rawDeletedImageIds
       : rawDeletedImageIds
-      ? [rawDeletedImageIds]
-      : [];
+        ? [rawDeletedImageIds]
+        : []
 
-    const files = req.files as Express.Multer.File[];
+    const files = req.files as Express.Multer.File[]
 
-    if (!slug) throwBadRequest("Product slug is required");
+    if (!slug) throwBadRequest('Product slug is required')
 
-    const [existingProduct] = await db
-      .select()
-      .from(products)
-      .where(eq(products.slug, slug));
+    const [existingProduct] = await db.select().from(products).where(eq(products.slug, slug))
 
-    if (!existingProduct) throwNotFound("Product not found");
+    if (!existingProduct) throwNotFound('Product not found')
 
-    const productId = existingProduct._id;
+    const productId = existingProduct._id
 
-    let newSlug = existingProduct.slug;
+    let newSlug = existingProduct.slug
     if (name && name !== existingProduct.name) {
-      newSlug = slugify(name);
+      newSlug = slugify(name)
       const [conflict] = await db
         .select()
         .from(products)
-        .where(and(eq(products.slug, newSlug), ne(products._id, productId)));
+        .where(and(eq(products.slug, newSlug), ne(products._id, productId)))
       if (conflict) {
-        throw throwBadRequest(
-          `Another product already exists with name "${name}"`
-        );
+        throw throwBadRequest(`Another product already exists with name "${name}"`)
       }
     }
 
@@ -250,32 +230,22 @@ export const editProduct = async (req: Request, res: Response) => {
         .select()
         .from(productImages)
         .where(
-          and(
-            eq(productImages.productId, productId),
-            inArray(productImages._id, deletedImageIds)
-          )
-        );
+          and(eq(productImages.productId, productId), inArray(productImages._id, deletedImageIds)),
+        )
 
-      await Promise.all(
-        imagesToDelete.map((img) => safeDeleteFromCloudinary(img.publicId))
-      );
+      await Promise.all(imagesToDelete.map((img) => safeDeleteFromCloudinary(img.publicId)))
 
       await db
         .delete(productImages)
         .where(
-          and(
-            eq(productImages.productId, productId),
-            inArray(productImages._id, deletedImageIds)
-          )
-        );
+          and(eq(productImages.productId, productId), inArray(productImages._id, deletedImageIds)),
+        )
     }
 
     // ☁️ Upload new images
-    const uploadedImageRows = [];
+    const uploadedImageRows = []
     if (files && files.length > 0) {
-      const uploads = await Promise.all(
-        files.map((file) => safeUploadToCloudinary(file))
-      );
+      const uploads = await Promise.all(files.map((file) => safeUploadToCloudinary(file)))
 
       const inserted = await db
         .insert(productImages)
@@ -285,11 +255,11 @@ export const editProduct = async (req: Request, res: Response) => {
             productId,
             imageUrl: url,
             publicId,
-          }))
+          })),
         )
-        .returning();
+        .returning()
 
-      uploadedImageRows.push(...inserted);
+      uploadedImageRows.push(...inserted)
     }
 
     const [updatedProduct] = await db
@@ -304,77 +274,72 @@ export const editProduct = async (req: Request, res: Response) => {
         updatedAt: new Date(),
       })
       .where(eq(products._id, productId))
-      .returning();
+      .returning()
 
     // Invalidate caches directly
-    await redis.del("products:all");
-    await redis.del("categories:all");
-    await redis.del(`product:${slug}`);
+    await redis.del('products:all')
+    await redis.del('categories:all')
+    await redis.del(`product:${slug}`)
     if (newSlug !== slug) {
-      await redis.del(`product:${newSlug}`);
+      await redis.del(`product:${newSlug}`)
     }
 
     // Invalidate old and new categories if changed
     if (categoryId && categoryId !== existingProduct.categoryId) {
       if (existingProduct.categoryId) {
-        await safeInvalidateCategory(existingProduct.categoryId);
+        await safeInvalidateCategory(existingProduct.categoryId)
       }
-      await safeInvalidateCategory(categoryId);
+      await safeInvalidateCategory(categoryId)
     } else if (existingProduct.categoryId) {
-      await safeInvalidateCategory(existingProduct.categoryId);
+      await safeInvalidateCategory(existingProduct.categoryId)
     }
 
     res.status(200).json({
       success: true,
-      message: "Product updated successfully",
+      message: 'Product updated successfully',
       data: {
         product: updatedProduct,
         newImages: uploadedImageRows,
         slug: updatedProduct.slug,
       },
-    });
+    })
   } catch (error: unknown) {
-    logger.error("Unhandled error:", error);
-    throwServerError("Something went wrong");
+    logger.error('Unhandled error:', error)
+    throwServerError('Something went wrong')
   }
-};
+}
 
 // ❌ Delete Product
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    if (!id) throwBadRequest("Product ID is required");
+    const { id } = req.params
+    if (!id) throwBadRequest('Product ID is required')
 
-    const [product] = await db
-      .select()
-      .from(products)
-      .where(eq(products._id, id));
+    const [product] = await db.select().from(products).where(eq(products._id, id))
 
-    if (!product) throwNotFound("Product not found");
+    if (!product) throwNotFound('Product not found')
 
     const imageRecords = await db
       .select()
       .from(productImages)
-      .where(eq(productImages.productId, id));
+      .where(eq(productImages.productId, id))
 
-    await Promise.all(
-      imageRecords.map((img) => safeDeleteFromCloudinary(img.publicId))
-    );
+    await Promise.all(imageRecords.map((img) => safeDeleteFromCloudinary(img.publicId)))
 
-    await db.delete(productImages).where(eq(productImages.productId, id));
-    await db.delete(products).where(eq(products._id, id));
+    await db.delete(productImages).where(eq(productImages.productId, id))
+    await db.delete(products).where(eq(products._id, id))
 
-    await redis.del("products:all");
-    await redis.del("categories:all");
-    await redis.del(`product:${product.slug}`);
-    await redis.del(`category:${product.categoryId}`);
+    await redis.del('products:all')
+    await redis.del('categories:all')
+    await redis.del(`product:${product.slug}`)
+    await redis.del(`category:${product.categoryId}`)
 
     res.status(200).json({
       success: true,
-      message: "Product deleted successfully",
-    });
+      message: 'Product deleted successfully',
+    })
   } catch (error: unknown) {
-    logger.error("Unhandled error:", error);
-    throwServerError("Something went wrong");
+    logger.error('Unhandled error:', error)
+    throwServerError('Something went wrong')
   }
-};
+}

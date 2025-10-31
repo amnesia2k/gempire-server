@@ -1,18 +1,13 @@
-import { env } from "../utils/env";
-import { sendEmail } from "./email";
-import {
-  orderTemplate,
-  InvoiceOrder,
-  InvoiceItem,
-  confirmationTemplate,
-} from "./invoice-template";
+import { env } from '../utils/env'
+import { sendEmail } from './email'
+import { orderTemplate, InvoiceOrder, InvoiceItem, confirmationTemplate } from './invoice-template'
 
 export const sendInvoiceEmail = async (
   order: InvoiceOrder,
-  items: InvoiceItem[]
+  items: InvoiceItem[],
 ): Promise<void> => {
   try {
-    const { subject, html } = orderTemplate(order, items);
+    const { subject, html } = orderTemplate(order, items)
 
     await sendEmail({
       from: `"Gempire" <${env.EMAIL_USER}>`,
@@ -20,19 +15,19 @@ export const sendInvoiceEmail = async (
       subject,
       html,
       text: `Invoice for Order #${order.id}, Total: ₦${order.totalAmount}`,
-    });
+    })
   } catch (error) {
-    console.error(error);
-    throw new Error("Failed to send invoice email");
+    console.error(error)
+    throw new Error('Failed to send invoice email')
   }
-};
+}
 
 export const sendConfirmationEmail = async (
   order: InvoiceOrder,
-  items: InvoiceItem[]
+  items: InvoiceItem[],
 ): Promise<void> => {
   try {
-    const { subject, html } = confirmationTemplate(order, items);
+    const { subject, html } = confirmationTemplate(order, items)
 
     await sendEmail({
       from: `"Gempire" <${env.EMAIL_USER}>`,
@@ -40,9 +35,9 @@ export const sendConfirmationEmail = async (
       subject,
       html,
       text: `Order #${order.id} has been delivered. Total: ₦${order.totalAmount}`,
-    });
+    })
   } catch (error) {
-    console.error(error);
-    throw new Error("Failed to send confirmation email");
+    console.error(error)
+    throw new Error('Failed to send confirmation email')
   }
-};
+}

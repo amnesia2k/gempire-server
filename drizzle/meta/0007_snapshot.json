@@ -108,12 +108,8 @@
           "name": "products_categoryId_category__id_fk",
           "tableFrom": "products",
           "tableTo": "category",
-          "columnsFrom": [
-            "categoryId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["categoryId"],
+          "columnsTo": ["_id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -123,9 +119,7 @@
         "products_slug_unique": {
           "name": "products_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -174,12 +168,8 @@
           "name": "product_images_productId_products__id_fk",
           "tableFrom": "product_images",
           "tableTo": "products",
-          "columnsFrom": [
-            "productId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["productId"],
+          "columnsTo": ["_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -227,9 +217,7 @@
         "category_slug_unique": {
           "name": "category_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -278,12 +266,8 @@
           "name": "order_items_orderId_orders__id_fk",
           "tableFrom": "order_items",
           "tableTo": "orders",
-          "columnsFrom": [
-            "orderId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["orderId"],
+          "columnsTo": ["_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -291,12 +275,8 @@
           "name": "order_items_productId_products__id_fk",
           "tableFrom": "order_items",
           "tableTo": "products",
-          "columnsFrom": [
-            "productId"
-          ],
-          "columnsTo": [
-            "_id"
-          ],
+          "columnsFrom": ["productId"],
+          "columnsTo": ["_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -376,9 +356,7 @@
         "orders_orderId_unique": {
           "name": "orders_orderId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "orderId"
-          ]
+          "columns": ["orderId"]
         }
       },
       "policies": {},
@@ -390,12 +368,7 @@
     "public.order_status": {
       "name": "order_status",
       "schema": "public",
-      "values": [
-        "ordered",
-        "shipped",
-        "delivered",
-        "cancelled"
-      ]
+      "values": ["ordered", "shipped", "delivered", "cancelled"]
     }
   },
   "schemas": {},

@@ -1,19 +1,15 @@
-import dotenv from "dotenv";
-dotenv.config();
+import dotenv from 'dotenv'
+dotenv.config()
 
 // ✅ Sanity check: throw if any env var is missing
-[
-  "CLOUDINARY_CLOUD_NAME",
-  "CLOUDINARY_API_KEY",
-  "CLOUDINARY_API_SECRET",
-].forEach((key) => {
+;['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].forEach((key) => {
   if (!process.env[key]) {
-    throw new Error(`❌ Missing required environment variable: ${key}`);
+    throw new Error(`❌ Missing required environment variable: ${key}`)
   }
-});
+})
 
-import { v2 as cloudinary } from "cloudinary";
-import { env } from "./env";
+import { v2 as cloudinary } from 'cloudinary'
+import { env } from './env'
 
 // ✅ Cloudinary configuration
 cloudinary.config({
@@ -21,6 +17,6 @@ cloudinary.config({
   api_key: env.CLOUDINARY_API_KEY,
   api_secret: env.CLOUDINARY_API_SECRET,
   secure: true,
-});
+})
 
-export default cloudinary;
+export default cloudinary

@@ -1,15 +1,15 @@
-import { category, categoryRelations } from "./category-schema";
+import { category, categoryRelations } from './category-schema'
 import {
   orderItems,
   orderItemsRelations,
   orders,
   ordersRelations,
   orderStatusEnum,
-} from "./order-schema";
-import { adminPasscodes } from "./passcode-schema";
-import { productImages, productImagesRelations } from "./product-images-schema";
-import { products, productsRelations } from "./product-schema";
-import { promoCodes } from "./promo-schema";
+} from './order-schema'
+import { adminPasscodes } from './passcode-schema'
+import { productImages, productImagesRelations } from './product-images-schema'
+import { products, productsRelations } from './product-schema'
+import { promoCodes } from './promo-schema'
 
 export const schema = {
   adminPasscodes,
@@ -25,4 +25,4 @@ export const schema = {
   orderItemsRelations,
   orderStatusEnum,
   promoCodes,
-};
+}

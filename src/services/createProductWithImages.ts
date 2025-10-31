@@ -1,22 +1,22 @@
-import { createId } from "@paralleldrive/cuid2";
-import { db } from "../db";
-import { products } from "../db/product-schema";
-import { productImages } from "../db/product-images-schema";
-import { category } from "../db/category-schema";
-import { eq } from "drizzle-orm";
-import { slugify } from "../utils/slugify";
-import { generateHybridId } from "../utils/id";
-import { throwBadRequest, throwNotFound } from "../utils/error";
-import { safeUploadToCloudinary } from "../utils/safe-upload";
+import { createId } from '@paralleldrive/cuid2'
+import { db } from '../db'
+import { products } from '../db/product-schema'
+import { productImages } from '../db/product-images-schema'
+import { category } from '../db/category-schema'
+import { eq } from 'drizzle-orm'
+import { slugify } from '../utils/slugify'
+import { generateHybridId } from '../utils/id'
+import { throwBadRequest, throwNotFound } from '../utils/error'
+import { safeUploadToCloudinary } from '../utils/safe-upload'
 
 type Input = {
-  name: string;
-  description?: string;
-  price: number;
-  unit: number;
-  categoryId: string;
-  files: Express.Multer.File[];
-};
+  name: string
+  description?: string
+  price: number
+  unit: number
+  categoryId: string
+  files: Express.Multer.File[]
+}
 
 export const createProductWithImages = async ({
   name,
@@ -26,45 +26,32 @@ export const createProductWithImages = async ({
   categoryId,
   files,
 }: Input) => {
-  if (
-    !name ||
-    !description ||
-    !price ||
-    !unit ||
-    !files?.length ||
-    !categoryId
-  ) {
-    throw throwBadRequest("All fields and at least one image are required.");
+  if (!name || !description || !price || !unit || !files?.length || !categoryId) {
+    throw throwBadRequest('All fields and at least one image are required.')
   }
 
-  const slug = slugify(name);
+  const slug = slugify(name)
 
   // 🛑 Check if a product with this slug already exists
-  const [existingProduct] = await db
-    .select()
-    .from(products)
-    .where(eq(products.slug, slug));
+  const [existingProduct] = await db.select().from(products).where(eq(products.slug, slug))
 
   if (existingProduct) {
     throw throwBadRequest(
-      `Product with the name "${name}" already exists. Please choose a different name.`
-    );
+      `Product with the name "${name}" already exists. Please choose a different name.`,
+    )
   }
 
-  const [existingCategory] = await db
-    .select()
-    .from(category)
-    .where(eq(category._id, categoryId));
+  const [existingCategory] = await db.select().from(category).where(eq(category._id, categoryId))
 
   if (!existingCategory) {
-    throw throwNotFound("Invalid categoryId: Category not found");
+    throw throwNotFound('Invalid categoryId: Category not found')
   }
 
   const [newProduct] = await db
     .insert(products)
     .values({
       _id: createId(),
-      productId: generateHybridId("gem"),
+      productId: generateHybridId('gem'),
       name,
       slug,
       description,
@@ -72,11 +59,9 @@ export const createProductWithImages = async ({
       unit,
       categoryId,
     })
-    .returning();
+    .returning()
 
-  const uploadedResults = await Promise.all(
-    files.map((file) => safeUploadToCloudinary(file))
-  );
+  const uploadedResults = await Promise.all(files.map((file) => safeUploadToCloudinary(file)))
 
   const imageRows = await db
     .insert(productImages)
@@ -86,12 +71,12 @@ export const createProductWithImages = async ({
         productId: newProduct._id,
         imageUrl: url,
         publicId, // 👈 save it!
-      }))
+      })),
     )
-    .returning();
+    .returning()
 
   return {
     product: newProduct,
     images: imageRows,
-  };
-};
+  }
+}

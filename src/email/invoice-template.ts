@@ -1,16 +1,16 @@
 export interface InvoiceItem {
-  productName: string;
-  quantity: number;
-  price: number; // already number
+  productName: string
+  quantity: number
+  price: number // already number
 }
 
 export interface InvoiceOrder {
-  id: string; // order.orderId
-  name: string;
-  email: string;
-  createdAt: Date;
-  discountAmount: number;
-  totalAmount: number;
+  id: string // order.orderId
+  name: string
+  email: string
+  createdAt: Date
+  discountAmount: number
+  totalAmount: number
 }
 
 export const orderTemplate = (order: InvoiceOrder, items: InvoiceItem[]) => {
@@ -29,9 +29,7 @@ export const orderTemplate = (order: InvoiceOrder, items: InvoiceItem[]) => {
               <h2 style="color: #333;">Invoice for #${order.id}</h2>
               <p><strong>Name:</strong> ${order.name}</p>
               <p><strong>Email:</strong> ${order.email}</p>
-              <p><strong>Date:</strong> ${new Date(
-                order.createdAt
-              ).toLocaleDateString()}</p>
+              <p><strong>Date:</strong> ${new Date(order.createdAt).toLocaleDateString()}</p>
               <hr style="margin: 20px 0;">
               <h3>Order Items</h3>
               <table style="width: 100%; border-collapse: collapse;">
@@ -50,16 +48,14 @@ export const orderTemplate = (order: InvoiceOrder, items: InvoiceItem[]) => {
                       <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                         item.productName
                       }</td>
-                      <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                        item.quantity
-                      }</td>
+                      <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.quantity}</td>
                       <td style="padding: 8px; border-bottom: 1px solid #eee; text-align:right;">
                         ₦${(item.price * item.quantity).toLocaleString()}
                       </td>
                     </tr>
-                  `
+                  `,
                     )
-                    .join("")}
+                    .join('')}
                 </tbody>
               </table>
               <h3 style="margin-top: 20px;">Discount: ₦${order.discountAmount.toLocaleString()}</h3>
@@ -72,13 +68,10 @@ export const orderTemplate = (order: InvoiceOrder, items: InvoiceItem[]) => {
       </body>
       </html>
     `,
-  };
-};
+  }
+}
 
-export const confirmationTemplate = (
-  order: InvoiceOrder,
-  items: InvoiceItem[]
-) => {
+export const confirmationTemplate = (order: InvoiceOrder, items: InvoiceItem[]) => {
   return {
     subject: `Your #${order.id} has been delivered 🎉`,
     html: `
@@ -93,9 +86,7 @@ export const confirmationTemplate = (
           <div style="max-width: 600px; margin: auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
               <h2 style="color: #333;">Order Delivered ✅</h2>
               <p>Hi ${order.name},</p>
-              <p>Your <strong>#${
-                order.id
-              }</strong> has been successfully delivered.</p>
+              <p>Your <strong>#${order.id}</strong> has been successfully delivered.</p>
               <hr style="margin: 20px 0;" />
               <h3>Order Summary</h3>
               <ul style="padding-left: 20px; color: #555;">
@@ -104,20 +95,18 @@ export const confirmationTemplate = (
                     (item) => `
                     <li>
                       ${item.quantity} × ${item.productName} — ₦${(
-                      item.price * item.quantity
-                    ).toLocaleString()}
-                    </li>`
+                        item.price * item.quantity
+                      ).toLocaleString()}
+                    </li>`,
                   )
-                  .join("")}
+                  .join('')}
               </ul>
               ${
                 order.discountAmount && Number(order.discountAmount) > 0
                   ? `<p style="margin-top: 10px; font-weight: bold;">
-                       Discount Applied: -₦${Number(
-                         order.discountAmount
-                       ).toLocaleString()}
+                       Discount Applied: -₦${Number(order.discountAmount).toLocaleString()}
                      </p>`
-                  : ""
+                  : ''
               }
               <h3>Total Paid: ₦${order.totalAmount.toLocaleString()}</h3>
               <p style="margin-top: 30px; font-size: 0.9em; color: #777; border-top: 1px solid #eee; padding-top: 20px;">
@@ -128,5 +117,5 @@ export const confirmationTemplate = (
       </body>
       </html>
     `,
-  };
-};
+  }
+}

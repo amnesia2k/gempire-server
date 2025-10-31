@@ -1,17 +1,13 @@
-import express from "express";
-import {
-  accessDashboard,
-  getAdmin,
-  logoutAdmin,
-} from "../controllers/admin-controller";
-import { createRateLimiter } from "../utils/rate-limiter";
+import express from 'express'
+import { accessDashboard, getAdmin, logoutAdmin } from '../controllers/admin-controller'
+import { createRateLimiter } from '../utils/rate-limiter'
 
-const router = express.Router();
+const router = express.Router()
 
-const accessRateLimiter = createRateLimiter("access", 10);
+const accessRateLimiter = createRateLimiter('access', 10)
 
-router.post("/login", accessRateLimiter, accessDashboard);
-router.post("/logout", logoutAdmin);
-router.get("/me", getAdmin);
+router.post('/login', accessRateLimiter, accessDashboard)
+router.post('/logout', logoutAdmin)
+router.get('/me', getAdmin)
 
-export default router;
+export default router
