@@ -42,7 +42,7 @@ app.use(
 app.use('/api/v1', routes)
 
 // error middleware
-app.use((err: Error, _req: Request, res: Response) => {
+app.use((err: Error, req: Request, res: Response, next: any) => {
   logger.error(err)
   res.status(500).json({
     error: err.message,
@@ -52,7 +52,7 @@ app.use((err: Error, _req: Request, res: Response) => {
 })
 
 // not found middleware
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Not Found', url: req.originalUrl })
 })
 
